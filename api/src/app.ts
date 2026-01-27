@@ -5,6 +5,8 @@ import multipart from '@fastify/multipart'
 import { registerHealthRoutes } from './routes/health'
 import { registerAuthRoutes } from './routes/auth'
 import { registerMeRoutes } from './routes/me'
+import { registerRoomRoutes } from './routes/rooms'
+import { registerInviteRoutes } from './routes/invites'
 
 export function buildApp() {
   const app = fastify({ logger: true })
@@ -32,6 +34,8 @@ export function buildApp() {
   app.register(registerHealthRoutes)
   app.register(registerAuthRoutes)
   app.register(registerMeRoutes)
+  app.register(registerRoomRoutes)
+  app.register(registerInviteRoutes)
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error(error)

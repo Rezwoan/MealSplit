@@ -10,8 +10,9 @@
 1. Open **phpMyAdmin** from cPanel.
 2. Select your database from the left sidebar.
 3. Go to **Import**.
-4. Choose the file [api/drizzle/0001_init.sql](../api/drizzle/0001_init.sql).
-5. Click **Go** to import the schema.
+4. Import [api/drizzle/0001_init.sql](../api/drizzle/0001_init.sql).
+5. Import [api/drizzle/0002_rooms.sql](../api/drizzle/0002_rooms.sql).
+6. Click **Go** to import each file in order.
 
 ## 3) Configure API environment
 Create `api/.env` and set:

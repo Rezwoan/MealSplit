@@ -1,4 +1,4 @@
-import { Link, Route, Routes } from 'react-router-dom'
+import { Link, Route, Routes, useNavigate } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import Inventory from './pages/Inventory'
 import Login from './pages/Login'
@@ -6,8 +6,17 @@ import Purchases from './pages/Purchases'
 import Rooms from './pages/Rooms'
 import Signup from './pages/Signup'
 import RequireAuth from './components/RequireAuth'
+import { clearToken, getToken } from './lib/auth'
 
 function App() {
+  const navigate = useNavigate()
+  const token = getToken()
+
+  const handleLogout = () => {
+    clearToken()
+    navigate('/login')
+  }
+
   return (
     <div className="min-h-screen bg-black text-neutral-100">
       <header className="border-b border-neutral-800">
@@ -26,6 +35,11 @@ function App() {
             <Link className="hover:text-white" to="/rooms">
               Rooms
             </Link>
+            {token ? (
+              <button className="hover:text-white" onClick={handleLogout}>
+                Logout
+              </button>
+            ) : null}
           </nav>
         </div>
       </header>
