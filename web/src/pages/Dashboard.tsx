@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { apiRequest } from '../lib/api'
 
 interface Member {
@@ -94,6 +94,22 @@ export default function Dashboard() {
           <p className="mt-2 text-sm text-neutral-400">
             {room.name} · {room.currency}
           </p>
+        ) : null}
+        {roomId ? (
+          <div className="mt-4 flex flex-wrap gap-3 text-sm text-neutral-400">
+            <Link className="hover:text-white" to={`/rooms/${roomId}`}>
+              Dashboard
+            </Link>
+            <Link className="hover:text-white" to={`/rooms/${roomId}/purchases`}>
+              Purchases
+            </Link>
+            <Link className="hover:text-white" to={`/rooms/${roomId}/balances`}>
+              Balances
+            </Link>
+            <Link className="hover:text-white" to={`/rooms/${roomId}/break-periods`}>
+              Breaks
+            </Link>
+          </div>
         ) : null}
         {error ? <p className="mt-2 text-sm text-red-400">{error}</p> : null}
       </div>

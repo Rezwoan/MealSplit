@@ -7,6 +7,9 @@ import { registerAuthRoutes } from './routes/auth'
 import { registerMeRoutes } from './routes/me'
 import { registerRoomRoutes } from './routes/rooms'
 import { registerInviteRoutes } from './routes/invites'
+import { registerBreakPeriodRoutes } from './routes/break-periods'
+import { registerPurchaseRoutes } from './routes/purchases'
+import { registerBalanceRoutes } from './routes/balances'
 
 export function buildApp() {
   const app = fastify({ logger: true })
@@ -36,6 +39,9 @@ export function buildApp() {
   app.register(registerMeRoutes)
   app.register(registerRoomRoutes)
   app.register(registerInviteRoutes)
+  app.register(registerBreakPeriodRoutes)
+  app.register(registerPurchaseRoutes)
+  app.register(registerBalanceRoutes)
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error(error)

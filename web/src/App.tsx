@@ -7,6 +7,8 @@ import Rooms from './pages/Rooms'
 import Signup from './pages/Signup'
 import RequireAuth from './components/RequireAuth'
 import { clearToken, getToken } from './lib/auth'
+import Balances from './pages/Balances'
+import BreakPeriods from './pages/BreakPeriods'
 
 function App() {
   const navigate = useNavigate()
@@ -76,6 +78,22 @@ function App() {
             element={
               <RequireAuth>
                 <Purchases />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/rooms/:roomId/balances"
+            element={
+              <RequireAuth>
+                <Balances />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/rooms/:roomId/break-periods"
+            element={
+              <RequireAuth>
+                <BreakPeriods />
               </RequireAuth>
             }
           />

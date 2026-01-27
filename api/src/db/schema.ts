@@ -1,5 +1,7 @@
 import {
+  date,
   datetime,
+  int,
   mysqlEnum,
   mysqlTable,
   tinyint,
@@ -82,5 +84,72 @@ export const roomInvites = mysqlTable('room_invites', {
     .default('active')
     .notNull(),
   expiresAt: datetime('expires_at'),
+  createdAt: datetime('created_at').defaultNow().notNull(),
+})
+
+export const purchases = mysqlTable('purchases', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  roomId: varchar('room_id', { length: 36 })
+    .notNull()
+    .references(() => rooms.id, { onDelete: 'cascade' }),
+  payerUserId: varchar('payer_user_id', { length: 36 })
+    .notNull()
+    .references(() => users.id, { onDelete: 'restrict' }),
+  totalAmountCents: int('total_amount_cents').notNull(),
+  currency: varchar('currency', { length: 10 }).notNull(),
+  notes: varchar('notes', { length: 500 }),
+  category: varchar('category', { length: 50 }),
+  purchasedAt: datetime('purchased_at').notNull(),
+  createdAt: datetime('created_at').defaultNow().notNull(),
+})
+
+export const purchaseSplits = mysqlTable(
+  'purchase_splits',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    purchaseId: varchar('purchase_id', { length: 36 })
+      .notNull()
+      .references(() => purchases.id, { onDelete: 'cascade' }),
+    userId: varchar('user_id', { length: 36 })
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    shareAmountCents: int('share_amount_cents').notNull(),
+    createdAt: datetime('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    purchaseUserUnique: uniqueIndex('purchase_splits_purchase_user_unique').on(
+      table.purchaseId,
+      table.userId,
+    ),
+  }),
+)
+
+export const memberBreakPeriods = mysqlTable('member_break_periods', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  roomId: varchar('room_id', { length: 36 })
+    .notNull()
+    .references(() => rooms.id, { onDelete: 'cascade' }),
+  userId: varchar('user_id', { length: 36 })
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  startDate: date('start_date').notNull(),
+  endDate: date('end_date').notNull(),
+  mode: mysqlEnum('mode', ['exclude']).default('exclude').notNull(),
+  createdAt: datetime('created_at').defaultNow().notNull(),
+})
+
+export const settlements = mysqlTable('settlements', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  roomId: varchar('room_id', { length: 36 })
+    .notNull()
+    .references(() => rooms.id, { onDelete: 'cascade' }),
+  payerUserId: varchar('payer_user_id', { length: 36 })
+    .notNull()
+    .references(() => users.id, { onDelete: 'restrict' }),
+  receiverUserId: varchar('receiver_user_id', { length: 36 })
+    .notNull()
+    .references(() => users.id, { onDelete: 'restrict' }),
+  amountCents: int('amount_cents').notNull(),
+  settledAt: datetime('settled_at').notNull(),
   createdAt: datetime('created_at').defaultNow().notNull(),
 })
