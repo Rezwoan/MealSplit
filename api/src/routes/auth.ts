@@ -25,12 +25,13 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     }
 
     const { displayName, email, password } = parsed.data
+    
+    // Check if email exists (avoid .limit(1) for MySQL compatibility)
     const existing = await db
       .select({ id: users.id })
       .from(users)
       .where(eq(users.email, email))
-      .limit(1)
-
+    
     if (existing.length > 0) {
       return reply.code(409).send({ message: 'Email already in use' })
     }
@@ -70,6 +71,8 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     }
 
     const { email, password } = parsed.data
+    
+    // Find user by email (avoid .limit(1) for MySQL compatibility)
     const result = await db
       .select({
         id: users.id,
@@ -79,11 +82,10 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       })
       .from(users)
       .where(eq(users.email, email))
-      .limit(1)
-
+    
     const user = result[0]
     if (!user || !verifyPassword(password, user.passwordHash)) {
-      return reply.code(401).send({ message: 'Invalid credentials' })
+      return reply.code(401).send({ message: 'Invalid email or password' })
     }
 
     const token = app.jwt.sign({ sub: user.id }, { expiresIn: process.env.JWT_EXPIRES_IN ?? '7d' })

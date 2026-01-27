@@ -79,7 +79,7 @@ export default function Signup() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required
-+            minLength={8}
+            minLength={8}
           />
         </div>
         {error ? <p className="text-sm text-red-400">{error}</p> : null}

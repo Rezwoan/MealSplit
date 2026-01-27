@@ -90,7 +90,7 @@ function App() {
             }
           />
           <Route
-            path="/rooms/:roomId/break-periods"
+            path="/rooms/:roomId/breaks"
             element={
               <RequireAuth>
                 <BreakPeriods />

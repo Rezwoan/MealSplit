@@ -20,11 +20,17 @@ interface RoomDetail {
   ownerUserId: string
 }
 
+interface Alerts {
+  lowStock: Array<{ itemId: string; name: string; currentAmount: number; threshold: number }>
+  expiringSoon: Array<{ itemId: string; name: string; expiryDate: string; daysLeft: number }>
+}
+
 export default function Dashboard() {
   const { roomId } = useParams()
   const [room, setRoom] = useState<RoomDetail | null>(null)
   const [members, setMembers] = useState<Member[]>([])
   const [me, setMe] = useState<{ id: string } | null>(null)
+  const [alerts, setAlerts] = useState<Alerts | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [inviteEmail, setInviteEmail] = useState('')
@@ -33,13 +39,15 @@ export default function Dashboard() {
   const loadRoom = async () => {
     if (!roomId) return
     try {
-      const [roomData, meData] = await Promise.all([
+      const [roomData, meData, alertsData] = await Promise.all([
         apiRequest<{ room: RoomDetail; members: Member[] }>(`/rooms/${roomId}`),
         apiRequest<{ user: { id: string } }>('/me'),
+        apiRequest<Alerts>(`/rooms/${roomId}/inventory/alerts`),
       ])
       setRoom(roomData.room)
       setMembers(roomData.members)
       setMe(meData.user)
+      setAlerts(alertsData)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load room')
     }
@@ -106,13 +114,53 @@ export default function Dashboard() {
             <Link className="hover:text-white" to={`/rooms/${roomId}/balances`}>
               Balances
             </Link>
-            <Link className="hover:text-white" to={`/rooms/${roomId}/break-periods`}>
+            <Link className="hover:text-white" to={`/rooms/${roomId}/breaks`}>
               Breaks
+            </Link>
+            <Link className="hover:text-white" to={`/rooms/${roomId}/inventory`}>
+              Inventory
             </Link>
           </div>
         ) : null}
         {error ? <p className="mt-2 text-sm text-red-400">{error}</p> : null}
       </div>
+
+      {/* Inventory Alerts */}
+      {alerts && (alerts.lowStock.length > 0 || alerts.expiringSoon.length > 0) && (
+        <div className="rounded-xl bg-neutral-900 p-6 shadow">
+          <h2 className="text-lg font-semibold text-white">Inventory Alerts</h2>
+          {alerts.lowStock.length > 0 && (
+            <div className="mt-3">
+              <h3 className="text-sm font-semibold text-red-400">⚠️ Low Stock ({alerts.lowStock.length})</h3>
+              <ul className="mt-2 space-y-1 text-sm text-neutral-300">
+                {alerts.lowStock.map((item) => (
+                  <li key={item.itemId}>
+                    {item.name}: {item.currentAmount} (threshold: {item.threshold})
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {alerts.expiringSoon.length > 0 && (
+            <div className="mt-3">
+              <h3 className="text-sm font-semibold text-orange-400">⏰ Expiring Soon ({alerts.expiringSoon.length})</h3>
+              <ul className="mt-2 space-y-1 text-sm text-neutral-300">
+                {alerts.expiringSoon.map((item) => (
+                  <li key={item.itemId}>
+                    {item.name}: expires in {item.daysLeft} days
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <Link
+            to={`/rooms/${roomId}/inventory`}
+            className="mt-3 inline-block text-sm text-cyan-400 hover:text-cyan-300"
+          >
+            View Inventory →
+          </Link>
+        </div>
+      )}
 
       {isAdmin ? (
         <div className="rounded-xl bg-neutral-900 p-6 shadow">

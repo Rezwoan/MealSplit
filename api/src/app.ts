@@ -1,4 +1,4 @@
-import fastify from 'fastify'
+import fastify, { FastifyReply, FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import multipart from '@fastify/multipart'
@@ -10,6 +10,7 @@ import { registerInviteRoutes } from './routes/invites'
 import { registerBreakPeriodRoutes } from './routes/break-periods'
 import { registerPurchaseRoutes } from './routes/purchases'
 import { registerBalanceRoutes } from './routes/balances'
+import { inventoryRoutes } from './routes/inventory'
 
 export function buildApp() {
   const app = fastify({ logger: true })
@@ -26,12 +27,22 @@ export function buildApp() {
 
   app.register(multipart)
 
-  app.decorate('authenticate', async (request, reply) => {
+  app.decorate('authenticate', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       await request.jwtVerify()
     } catch (err) {
       return reply.code(401).send({ message: 'Unauthorized' })
     }
+  })
+
+  // Root route
+  app.get('/', async (_request, reply) => {
+    return reply.send({
+      ok: true,
+      name: 'MealSplit API',
+      health: '/health',
+      docs: 'https://github.com/Rezwoan/MealSplit',
+    })
   })
 
   app.register(registerHealthRoutes)
@@ -42,6 +53,7 @@ export function buildApp() {
   app.register(registerBreakPeriodRoutes)
   app.register(registerPurchaseRoutes)
   app.register(registerBalanceRoutes)
+  app.register(inventoryRoutes)
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error(error)
