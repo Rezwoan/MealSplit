@@ -4,6 +4,8 @@ import Inventory from './pages/Inventory'
 import Login from './pages/Login'
 import Purchases from './pages/Purchases'
 import Rooms from './pages/Rooms'
+import Signup from './pages/Signup'
+import RequireAuth from './components/RequireAuth'
 
 function App() {
   return (
@@ -18,6 +20,9 @@ function App() {
             <Link className="hover:text-white" to="/login">
               Login
             </Link>
+            <Link className="hover:text-white" to="/signup">
+              Signup
+            </Link>
             <Link className="hover:text-white" to="/rooms">
               Rooms
             </Link>
@@ -27,10 +32,39 @@ function App() {
       <main className="mx-auto max-w-5xl px-4 py-8">
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/rooms" element={<Rooms />} />
-          <Route path="/rooms/:roomId" element={<Dashboard />} />
-          <Route path="/rooms/:roomId/inventory" element={<Inventory />} />
-          <Route path="/rooms/:roomId/purchases" element={<Purchases />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route
+            path="/rooms"
+            element={
+              <RequireAuth>
+                <Rooms />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/rooms/:roomId"
+            element={
+              <RequireAuth>
+                <Dashboard />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/rooms/:roomId/inventory"
+            element={
+              <RequireAuth>
+                <Inventory />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/rooms/:roomId/purchases"
+            element={
+              <RequireAuth>
+                <Purchases />
+              </RequireAuth>
+            }
+          />
           <Route
             path="*"
             element={
