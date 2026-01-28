@@ -48,8 +48,8 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
     await db.insert(userPreferences).values({
       userId,
-      themeMode: 'amoled',
-      accentColor: '#00FFFF',
+      themeMode: 'dark',
+      accentHue: 190,
     })
 
     const token = app.jwt.sign({ sub: userId }, { expiresIn: process.env.JWT_EXPIRES_IN ?? '7d' })

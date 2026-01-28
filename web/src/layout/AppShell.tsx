@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { LogOut, Home } from 'lucide-react'
+import { LogOut, Home, User } from 'lucide-react'
 import { clearToken, getToken } from '../lib/auth'
 import { Button } from '../ui/Button'
 
@@ -54,6 +54,15 @@ export function AppShell({ children }: AppShellProps) {
                   >
                     <Home className="h-4 w-4 mr-2" />
                     Rooms
+                  </Button>
+                </Link>
+                <Link to="/me">
+                  <Button
+                    variant={isActive('/me') ? 'secondary' : 'ghost'}
+                    size="sm"
+                  >
+                    <User className="h-4 w-4 mr-2" />
+                    Profile
                   </Button>
                 </Link>
                 <Button

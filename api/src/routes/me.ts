@@ -1,7 +1,8 @@
 import { FastifyInstance } from 'fastify'
 import { db } from '../db'
-import { users, userPreferences } from '../db/schema'
-import { eq } from 'drizzle-orm'
+import { users, userPreferences, purchases, purchaseSplits, settlements } from '../db/schema'
+import { eq, and, sql } from 'drizzle-orm'
+import { z } from 'zod'
 
 export async function registerMeRoutes(app: FastifyInstance) {
   app.get('/me', { preHandler: [app.authenticate] }, async (request, reply) => {
@@ -12,8 +13,10 @@ export async function registerMeRoutes(app: FastifyInstance) {
         id: users.id,
         email: users.email,
         displayName: users.displayName,
+        avatarUrl: users.avatarUrl,
+        bio: users.bio,
         themeMode: userPreferences.themeMode,
-        accentColor: userPreferences.accentColor,
+        accentHue: userPreferences.accentHue,
       })
       .from(users)
       .leftJoin(userPreferences, eq(userPreferences.userId, users.id))
@@ -30,9 +33,213 @@ export async function registerMeRoutes(app: FastifyInstance) {
         id: row.id,
         email: row.email,
         displayName: row.displayName,
+        avatarUrl: row.avatarUrl,
+        bio: row.bio,
         preferences: {
-          themeMode: row.themeMode ?? 'amoled',
-          accentColor: row.accentColor ?? '#00FFFF',
+          themeMode: row.themeMode ?? 'dark',
+          accentHue: row.accentHue ?? 190,
+        },
+      },
+    })
+  })
+
+  // Update user profile
+  const updateProfileSchema = z.object({
+    displayName: z.string().min(1).max(100).optional(),
+    bio: z.string().max(280).optional(),
+    avatarUrl: z.string().max(500).optional(),
+  })
+
+  app.patch('/me', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const userId = request.user.sub
+    const parsed = updateProfileSchema.safeParse(request.body)
+
+    if (!parsed.success) {
+      return reply.code(400).send({ message: 'Invalid request', errors: parsed.error.issues })
+    }
+
+    const updates: any = {}
+    if (parsed.data.displayName !== undefined) updates.displayName = parsed.data.displayName
+    if (parsed.data.bio !== undefined) updates.bio = parsed.data.bio
+    if (parsed.data.avatarUrl !== undefined) updates.avatarUrl = parsed.data.avatarUrl
+
+    if (Object.keys(updates).length === 0) {
+      return reply.code(400).send({ message: 'No fields to update' })
+    }
+
+    await db.update(users).set(updates).where(eq(users.id, userId))
+
+    const result = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        displayName: users.displayName,
+        avatarUrl: users.avatarUrl,
+        bio: users.bio,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1)
+
+    return reply.send({ user: result[0] })
+  })
+
+  // Get user preferences
+  app.get('/me/preferences', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const userId = request.user.sub
+
+    const result = await db
+      .select({
+        themeMode: userPreferences.themeMode,
+        accentHue: userPreferences.accentHue,
+      })
+      .from(userPreferences)
+      .where(eq(userPreferences.userId, userId))
+      .limit(1)
+
+    const prefs = result[0] ?? { themeMode: 'dark', accentHue: 190 }
+
+    return reply.send({
+      preferences: {
+        themeMode: prefs.themeMode,
+        accentHue: prefs.accentHue,
+      },
+    })
+  })
+
+  // Update user preferences
+  const updatePreferencesSchema = z.object({
+    themeMode: z.enum(['light', 'dark', 'amoled']).optional(),
+    accentHue: z.number().int().min(0).max(360).optional(),
+  })
+
+  app.patch('/me/preferences', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const userId = request.user.sub
+    const parsed = updatePreferencesSchema.safeParse(request.body)
+
+    if (!parsed.success) {
+      return reply.code(400).send({ message: 'Invalid request', errors: parsed.error.issues })
+    }
+
+    const updates: any = {}
+    if (parsed.data.themeMode !== undefined) updates.themeMode = parsed.data.themeMode
+    if (parsed.data.accentHue !== undefined) updates.accentHue = parsed.data.accentHue
+
+    if (Object.keys(updates).length === 0) {
+      return reply.code(400).send({ message: 'No fields to update' })
+    }
+
+    // Check if preferences exist
+    const existing = await db
+      .select({ userId: userPreferences.userId })
+      .from(userPreferences)
+      .where(eq(userPreferences.userId, userId))
+      .limit(1)
+
+    if (existing.length === 0) {
+      // Create default preferences
+      await db.insert(userPreferences).values({
+        userId,
+        themeMode: parsed.data.themeMode ?? 'dark',
+        accentHue: parsed.data.accentHue ?? 190,
+      })
+    } else {
+      await db.update(userPreferences).set(updates).where(eq(userPreferences.userId, userId))
+    }
+
+    const result = await db
+      .select({
+        themeMode: userPreferences.themeMode,
+        accentHue: userPreferences.accentHue,
+      })
+      .from(userPreferences)
+      .where(eq(userPreferences.userId, userId))
+      .limit(1)
+
+    return reply.send({ preferences: result[0] })
+  })
+
+  // Get user stats
+  app.get('/me/stats', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const userId = request.user.sub
+
+    // Get total purchases paid by user
+    const totalPaidResult = await db
+      .select({
+        count: sql<number>`COUNT(*)`,
+        total: sql<number>`COALESCE(SUM(${purchases.totalAmountCents}), 0)`,
+      })
+      .from(purchases)
+      .where(eq(purchases.payerUserId, userId))
+
+    // Get total share across all purchases
+    const totalShareResult = await db
+      .select({
+        total: sql<number>`COALESCE(SUM(${purchaseSplits.shareAmountCents}), 0)`,
+      })
+      .from(purchaseSplits)
+      .where(eq(purchaseSplits.userId, userId))
+
+    // Get settlements where user received money
+    const settlementsReceivedResult = await db
+      .select({
+        total: sql<number>`COALESCE(SUM(${settlements.amountCents}), 0)`,
+      })
+      .from(settlements)
+      .where(eq(settlements.toUserId, userId))
+
+    // Get settlements where user paid money
+    const settlementsPaidResult = await db
+      .select({
+        total: sql<number>`COALESCE(SUM(${settlements.amountCents}), 0)`,
+      })
+      .from(settlements)
+      .where(eq(settlements.fromUserId, userId))
+
+    // Get last 30 days stats
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+    const last30DaysResult = await db
+      .select({
+        count: sql<number>`COUNT(*)`,
+        total: sql<number>`COALESCE(SUM(${purchases.totalAmountCents}), 0)`,
+      })
+      .from(purchases)
+      .where(
+        and(
+          eq(purchases.payerUserId, userId),
+          sql`${purchases.purchasedAt} >= ${thirtyDaysAgo.toISOString()}`,
+        ),
+      )
+
+    // Count active rooms
+    const roomsCountResult = await db.execute(
+      sql`
+        SELECT COUNT(DISTINCT room_id) as count
+        FROM room_memberships
+        WHERE user_id = ${userId} AND status = 'active'
+      `,
+    )
+
+    const totalPaid = Number(totalPaidResult[0]?.total ?? 0)
+    const totalShare = Number(totalShareResult[0]?.total ?? 0)
+    const settlementsReceived = Number(settlementsReceivedResult[0]?.total ?? 0)
+    const settlementsPaid = Number(settlementsPaidResult[0]?.total ?? 0)
+
+    // Net = what I paid - what I owe + what I received - what I paid in settlements
+    const netCents = totalPaid - totalShare + settlementsReceived - settlementsPaid
+
+    return reply.send({
+      stats: {
+        roomsCount: Number((roomsCountResult as any)[0]?.count ?? 0),
+        purchasesCount: Number(totalPaidResult[0]?.count ?? 0),
+        totalPaidCents: totalPaid,
+        totalShareCents: totalShare,
+        netCents,
+        last30Days: {
+          purchasesCount: Number(last30DaysResult[0]?.count ?? 0),
+          totalPaidCents: Number(last30DaysResult[0]?.total ?? 0),
         },
       },
     })

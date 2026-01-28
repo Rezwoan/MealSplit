@@ -2,15 +2,18 @@
 
 @layer base {
   :root {
-    /* Modern Professional Theme */
+    /* Accent hue variable (set dynamically from user preference) */
+    --accent-hue: 190;
+    
+    /* Light Theme (default) */
     --background: 0 0% 100%;
     --foreground: 222 47% 11%;
     
     --card: 0 0% 100%;
     --card-hover: 0 0% 98%;
     
-    --primary: 221 83% 53%;
-    --primary-hover: 221 83% 48%;
+    --primary: var(--accent-hue) 70% 50%;
+    --primary-hover: var(--accent-hue) 70% 45%;
     --primary-foreground: 0 0% 100%;
     
     --secondary: 214 32% 91%;
@@ -30,6 +33,60 @@
     --radius: 0.5rem;
   }
   
+  /* Dark Theme */
+  [data-theme="dark"] {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    
+    --card: 222 47% 14%;
+    --card-hover: 222 47% 16%;
+    
+    --primary: var(--accent-hue) 70% 50%;
+    --primary-hover: var(--accent-hue) 70% 55%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 217 33% 17%;
+    --secondary-hover: 217 33% 20%;
+    --secondary-foreground: 210 40% 98%;
+    
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+    --destructive: 0 84% 60%;
+  }
+  
+  /* AMOLED Theme (pure black for OLED screens) */
+  [data-theme="amoled"] {
+    --background: 0 0% 0%;
+    --foreground: 210 40% 98%;
+    
+    --card: 0 0% 4%;
+    --card-hover: 0 0% 8%;
+    
+    --primary: var(--accent-hue) 70% 50%;
+    --primary-hover: var(--accent-hue) 70% 55%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 0 0% 10%;
+    --secondary-hover: 0 0% 14%;
+    --secondary-foreground: 210 40% 98%;
+    
+    --muted: 0 0% 10%;
+    --muted-foreground: 215 20% 65%;
+    
+    --border: 0 0% 14%;
+    --input: 0 0% 10%;
+    
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+    --destructive: 0 84% 60%;
+  }
+  
   * {
     border-color: hsl(var(--border));
   }
@@ -44,6 +101,7 @@
     color: hsl(var(--foreground));
     margin: 0;
     min-height: 100vh;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
   
   h1, h2, h3, h4, h5, h6 {
