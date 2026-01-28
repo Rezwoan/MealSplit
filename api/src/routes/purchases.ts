@@ -5,6 +5,7 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '../db'
 import {
   memberBreakPeriods,
+  purchaseSplitInputs,
   purchaseSplits,
   purchases,
   roomMemberships,
@@ -12,7 +13,7 @@ import {
   users,
 } from '../db/schema'
 import { requireRoomMember } from '../lib/room-guards'
-import { computeEqualSplitCents } from '../lib/split'
+import { computeEqualSplitCents, computeCustomAmountSplit, computeCustomPercentSplit } from '../lib/split'
 import { parseAmountToCents } from '../lib/money'
 
 const createPurchaseSchema = z.object({
@@ -21,6 +22,11 @@ const createPurchaseSchema = z.object({
   purchasedAt: z.string().datetime().optional(),
   notes: z.string().max(500).optional(),
   category: z.string().max(50).optional(),
+  splitMode: z.enum(['equal', 'custom_amount', 'custom_percent']).optional(),
+  splitInputs: z.array(z.object({
+    userId: z.string().uuid(),
+    value: z.string(),
+  })).optional(),
 })
 
 const listQuerySchema = z.object({

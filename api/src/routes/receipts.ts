@@ -16,6 +16,13 @@ const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'receipts')
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
+// Safe mime-to-extension mapping (never trust user-supplied extensions)
+const MIME_TO_EXT: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+}
+
 // Ensure upload directory exists
 async function ensureUploadDir() {
   try {
@@ -25,9 +32,8 @@ async function ensureUploadDir() {
   }
 }
 
-function getPublicUrl(filePath: string): string {
-  const baseUrl = process.env.PUBLIC_BASE_URL || ''
-  return `${baseUrl}/uploads/receipts/${path.basename(filePath)}`
+function getReceiptUrl(roomId: string, purchaseId: string): string {
+  return `/rooms/${roomId}/purchases/${purchaseId}/receipt/file`
 }
 
 export async function registerReceiptRoutes(app: FastifyInstance) {
@@ -111,10 +117,11 @@ export async function registerReceiptRoutes(app: FastifyInstance) {
         }
       }
 
-      // Generate safe filename
-      const ext = file.filename.split('.').pop() || 'jpg'
+      // Generate safe filename using mime type (never trust user extension)
+      const ext = MIME_TO_EXT[file.mimetype] || 'jpg'
+      const randomSuffix = randomUUID().slice(0, 8) // Add randomness for security
       const timestamp = Date.now()
-      const filename = `receipt_${purchaseId}_${timestamp}.${ext}`
+      const filename = `receipt_${purchaseId}_${timestamp}_${randomSuffix}.${ext}`
       const filePath = path.join(UPLOAD_DIR, filename)
       const relativeFilePath = `uploads/receipts/${filename}`
 
@@ -148,13 +155,15 @@ export async function registerReceiptRoutes(app: FastifyInstance) {
       }
 
       return reply.send({
+        message: 'Receipt uploaded successfully',
         receipt: {
           id: receiptId,
           purchaseId,
-          url: getPublicUrl(relativeFilePath),
+          url: getReceiptUrl(roomId, purchaseId),
           originalFilename: file.filename,
           mimeType: file.mimetype,
           fileSizeBytes: buffer.length,
+          createdAt: new Date().toISOString(),
         },
       })
     },
@@ -168,7 +177,7 @@ export async function registerReceiptRoutes(app: FastifyInstance) {
     },
     async (request, reply) => {
       const { roomId, purchaseId } = request.params
-      const userId = request.user.id
+      const userId = request.user.sub
 
       // Verify purchase exists and belongs to room
       const [purchase] = await db
@@ -213,11 +222,11 @@ export async function registerReceiptRoutes(app: FastifyInstance) {
         receipt: {
           id: receipt.id,
           purchaseId: receipt.purchaseId,
-          url: getPublicUrl(receipt.filePath),
+          url: getReceiptUrl(roomId, purchaseId),
           originalFilename: receipt.originalFilename,
           mimeType: receipt.mimeType,
           fileSizeBytes: receipt.fileSizeBytes,
-          uploadedAt: receipt.createdAt,
+          createdAt: receipt.createdAt,
         },
       })
     },
@@ -231,7 +240,7 @@ export async function registerReceiptRoutes(app: FastifyInstance) {
     },
     async (request, reply) => {
       const { roomId, purchaseId } = request.params
-      const userId = request.user.id
+      const userId = request.user.sub
 
       // Verify purchase exists and belongs to room
       const [purchase] = await db
@@ -284,6 +293,70 @@ export async function registerReceiptRoutes(app: FastifyInstance) {
       await db.delete(purchaseReceipts).where(eq(purchaseReceipts.id, receipt.id))
 
       return reply.send({ message: 'Receipt deleted successfully' })
+    },
+  )
+
+  // Stream receipt file with authentication (SECURE)
+  app.get<{ Params: ReceiptParams }>(
+    '/rooms/:roomId/purchases/:purchaseId/receipt/file',
+    {
+      preHandler: app.authenticate,
+    },
+    async (request, reply) => {
+      const { roomId, purchaseId } = request.params
+      const userId = request.user.sub
+
+      // Verify purchase exists and belongs to room
+      const [purchase] = await db
+        .select()
+        .from(purchases)
+        .where(and(eq(purchases.id, purchaseId), eq(purchases.roomId, roomId)))
+        .limit(1)
+
+      if (!purchase) {
+        return reply.code(404).send({ message: 'Purchase not found' })
+      }
+
+      // Verify user is room member with active status
+      const [membership] = await db
+        .select()
+        .from(roomMemberships)
+        .where(
+          and(
+            eq(roomMemberships.roomId, roomId),
+            eq(roomMemberships.userId, userId),
+            eq(roomMemberships.status, 'active'),
+          ),
+        )
+        .limit(1)
+
+      if (!membership) {
+        return reply.code(403).send({ message: 'Not a member of this room' })
+      }
+
+      // Get receipt
+      const [receipt] = await db
+        .select()
+        .from(purchaseReceipts)
+        .where(eq(purchaseReceipts.purchaseId, purchaseId))
+        .limit(1)
+
+      if (!receipt) {
+        return reply.code(404).send({ message: 'No receipt found for this purchase' })
+      }
+
+      // Stream file with proper content type
+      const filePath = path.join(process.cwd(), receipt.filePath)
+      
+      try {
+        const fileStream = await fs.readFile(filePath)
+        reply.type(receipt.mimeType)
+        reply.header('Content-Disposition', `inline; filename="${receipt.originalFilename}"`)
+        return reply.send(fileStream)
+      } catch (err) {
+        console.error('Failed to read receipt file:', err)
+        return reply.code(404).send({ message: 'Receipt file not found' })
+      }
     },
   )
 }

@@ -3,6 +3,7 @@ import { Upload, X, Image as ImageIcon, FileText, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { uploadReceipt, deleteReceipt } from '../lib/api';
+import { AuthenticatedImage } from './AuthenticatedImage';
 
 interface ReceiptUploadProps {
   roomId: string;
@@ -12,7 +13,7 @@ interface ReceiptUploadProps {
     originalFilename: string;
     fileSizeBytes: number;
     mimeType: string;
-    publicUrl: string;
+    url: string;
     createdAt: string;
   } | null;
   onUploadSuccess?: () => void;
@@ -97,8 +98,8 @@ export function ReceiptUpload({
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-3 flex-1">
             <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
-              <img
-                src={existingReceipt.publicUrl}
+              <AuthenticatedImage
+                src={existingReceipt.url}
                 alt="Receipt thumbnail"
                 className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => setShowFullImage(true)}
@@ -180,8 +181,8 @@ export function ReceiptUpload({
               >
                 <X className="w-6 h-6" />
               </button>
-              <img
-                src={existingReceipt.publicUrl}
+              <AuthenticatedImage
+                src={existingReceipt.url}
                 alt="Receipt"
                 className="w-full h-full object-contain rounded-lg"
                 onClick={(e) => e.stopPropagation()}

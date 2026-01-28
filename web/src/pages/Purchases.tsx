@@ -260,6 +260,7 @@ export default function Purchases() {
             purchase={{
               id: selectedPurchase.id,
               amount: selectedPurchase.totalAmountCents / 100,
+              currency: selectedPurchase.currency,
               description: selectedPurchase.notes || '',
               category: selectedPurchase.category,
               paidBy: {

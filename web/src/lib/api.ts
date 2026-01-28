@@ -57,15 +57,15 @@ export async function uploadReceipt(roomId: string, purchaseId: string, file: Fi
 
 export async function getReceipt(roomId: string, purchaseId: string) {
   return apiRequest<{
-    id: string
-    purchaseId: string
-    filePath: string
-    originalFilename: string
-    mimeType: string
-    fileSizeBytes: number
-    uploadedByUserId: string
-    createdAt: string
-    publicUrl: string
+    receipt: {
+      id: string
+      purchaseId: string
+      url: string
+      originalFilename: string
+      mimeType: string
+      fileSizeBytes: number
+      createdAt: string
+    }
   }>(`/rooms/${roomId}/purchases/${purchaseId}/receipt`)
 }
 

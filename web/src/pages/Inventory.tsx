@@ -65,7 +65,7 @@ export default function Inventory() {
     setLoading(true)
     try {
       const [itemsData, roomData] = await Promise.all([
-        apiRequest<{ items: InventoryItem[] }>(`rooms/${roomId}/inventory/items`),
+        apiRequest<{ items: InventoryItem[] }>(`/rooms/${roomId}/inventory/items`),
         apiRequest<{ room: { name: string } }>(`/rooms/${roomId}`),
       ])
       setItems(itemsData.items)
@@ -104,7 +104,7 @@ export default function Inventory() {
         body.expiryDate = newItemExpiryDate
       }
 
-      await apiRequest(`rooms/${roomId}/inventory/items`, {
+      await apiRequest(`/rooms/${roomId}/inventory/items`, {
         method: 'POST',
         body: JSON.stringify(body),
       })

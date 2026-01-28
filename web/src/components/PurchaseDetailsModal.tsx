@@ -5,7 +5,7 @@ import { Button } from '../ui/Button';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { ReceiptUpload } from './ReceiptUpload';
 import { getReceipt } from '../lib/api';
-import { formatMoney } from '../lib/money';
+import { formatCents } from '../lib/money';
 
 interface PurchaseDetailsModalProps {
   isOpen: boolean;
@@ -13,6 +13,7 @@ interface PurchaseDetailsModalProps {
   purchase: {
     id: string;
     amount: number;
+    currency?: string;
     description: string;
     category: string | null;
     paidBy: {
@@ -50,7 +51,7 @@ export function PurchaseDetailsModal({
     setLoadingReceipt(true);
     try {
       const data = await getReceipt(roomId, purchase.id);
-      setReceipt(data);
+      setReceipt(data.receipt);
     } catch (err: any) {
       // 404 means no receipt exists
       if (!err.message?.includes('404')) {
@@ -73,7 +74,7 @@ export function PurchaseDetailsModal({
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-gray-900">
-                {formatMoney(purchase.amount)}
+                {formatCents(purchase.currency || 'USD', Math.round(purchase.amount * 100))}
               </h3>
               <p className="text-sm text-gray-600 mt-1">
                 {purchase.description || 'No description'}
@@ -129,7 +130,7 @@ export function PurchaseDetailsModal({
                     {split.userName}
                   </span>
                   <span className="text-sm text-gray-600">
-                    {formatMoney(split.amount)}
+                    {formatCents(purchase.currency || 'USD', Math.round(split.amount * 100))}
                   </span>
                 </div>
               ))}

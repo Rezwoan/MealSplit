@@ -2,8 +2,6 @@ import fastify, { FastifyReply, FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import multipart from '@fastify/multipart'
-import fastifyStatic from '@fastify/static'
-import path from 'node:path'
 import { registerHealthRoutes } from './routes/health'
 import { registerAuthRoutes } from './routes/auth'
 import { registerMeRoutes } from './routes/me'
@@ -29,13 +27,6 @@ export function buildApp() {
   })
 
   app.register(multipart)
-
-  // Serve static uploaded files
-  app.register(fastifyStatic, {
-    root: path.join(process.cwd(), 'uploads'),
-    prefix: '/uploads/',
-    decorateReply: false,
-  })
 
   app.decorate('authenticate', async (request: FastifyRequest, reply: FastifyReply) => {
     try {

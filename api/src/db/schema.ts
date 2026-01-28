@@ -106,6 +106,7 @@ export const purchases = mysqlTable('purchases', {
   currency: varchar('currency', { length: 10 }).notNull(),
   notes: varchar('notes', { length: 500 }),
   category: varchar('category', { length: 50 }),
+  splitMode: varchar('split_mode', { length: 20 }).notNull().default('equal'),
   purchasedAt: datetime('purchased_at').notNull(),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 })
@@ -128,6 +129,28 @@ export const purchaseSplits = mysqlTable(
       table.purchaseId,
       table.userId,
     ),
+  }),
+)
+
+export const purchaseSplitInputs = mysqlTable(
+  'purchase_split_inputs',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    purchaseId: varchar('purchase_id', { length: 36 })
+      .notNull()
+      .references(() => purchases.id, { onDelete: 'cascade' }),
+    userId: varchar('user_id', { length: 36 })
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    inputValue: int('input_value').notNull(),
+    createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  },
+  (table) => ({
+    purchaseUserUnique: uniqueIndex('purchase_split_inputs_purchase_user_unique').on(
+      table.purchaseId,
+      table.userId,
+    ),
+    purchaseIdx: index('idx_purchase_split_inputs_purchase').on(table.purchaseId),
   }),
 )
 

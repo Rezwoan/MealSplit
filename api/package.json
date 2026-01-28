@@ -4,11 +4,13 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "nodemon --watch src --ext ts --exec node -r ts-node/register src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "dev:nodemon": "nodemon --watch src --ext ts --exec node -r ts-node/register src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
-    "db:sql": "drizzle-kit generate --config drizzle.config.ts"
+    "db:sql": "drizzle-kit generate --config drizzle.config.ts",
+    "kill:port": "echo Run this in PowerShell: Get-Process -Id (Get-NetTCPConnection -LocalPort 3001).OwningProcess | Stop-Process -Force"
   },
   "keywords": [],
   "author": "",
@@ -30,6 +32,7 @@
     "drizzle-kit": "^0.31.8",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }
