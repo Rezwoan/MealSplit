@@ -187,6 +187,12 @@ export async function registerInviteRoutes(app: FastifyInstance) {
 
       const current = updated[0]
       if (current.inviterConfirmed && current.inviteeConfirmed && current.status !== 'active') {
+        // Check room capacity before activating membership
+        const activeCount = await countActiveMembers(roomId)
+        if (activeCount >= 4) {
+          return reply.code(409).send({ message: 'Room is full (max 4 active members).' })
+        }
+
         await db
           .update(roomMemberships)
           .set({ status: 'active', joinedAt: new Date() })
@@ -200,6 +206,47 @@ export async function registerInviteRoutes(app: FastifyInstance) {
         .limit(1)
 
       return reply.send({ membership: final[0] })
+    },
+  )
+
+  app.post(
+    '/rooms/:roomId/members/:memberId/reject',
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { roomId, memberId } = request.params as { roomId: string; memberId: string }
+      const userId = request.user.sub
+
+      const membershipResult = await db
+        .select()
+        .from(roomMemberships)
+        .where(eq(roomMemberships.id, memberId))
+        .limit(1)
+
+      const membership = membershipResult[0]
+      if (!membership || membership.roomId !== roomId) {
+        return reply.code(404).send({ message: 'Membership not found' })
+      }
+
+      // Only admin/owner or the invitee can reject
+      const admin = await requireRoomAdmin(roomId, userId)
+      const isInvitee = membership.userId === userId
+
+      if (!admin && !isInvitee) {
+        return reply.code(403).send({ message: 'Not allowed' })
+      }
+
+      await db
+        .update(roomMemberships)
+        .set({ status: 'rejected' })
+        .where(eq(roomMemberships.id, memberId))
+
+      const updated = await db
+        .select()
+        .from(roomMemberships)
+        .where(eq(roomMemberships.id, memberId))
+        .limit(1)
+
+      return reply.send({ membership: updated[0] })
     },
   )
 }

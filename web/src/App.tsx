@@ -7,6 +7,7 @@ import Purchases from './pages/Purchases'
 import Rooms from './pages/Rooms'
 import Signup from './pages/Signup'
 import Profile from './pages/Profile'
+import RoomSettings from './pages/RoomSettings'
 import RequireAuth from './components/RequireAuth'
 import Balances from './pages/Balances'
 import BreakPeriods from './pages/BreakPeriods'
@@ -64,6 +65,14 @@ function App() {
           element={
             <RequireAuth>
               <BreakPeriods />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/rooms/:roomId/settings"
+          element={
+            <RequireAuth>
+              <RoomSettings />
             </RequireAuth>
           }
         />

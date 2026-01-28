@@ -1,4 +1,4 @@
-import { Home, ShoppingCart, Scale, Calendar, Package } from 'lucide-react'
+import { Home, ShoppingCart, Scale, Calendar, Package, Settings } from 'lucide-react'
 import { Tabs } from '../ui/Tabs'
 
 interface RoomTabsProps {
@@ -31,6 +31,11 @@ export function RoomTabs({ roomId }: RoomTabsProps) {
       label: 'Inventory',
       href: `/rooms/${roomId}/inventory`,
       icon: <Package className="h-4 w-4" />,
+    },
+    {
+      label: 'Settings',
+      href: `/rooms/${roomId}/settings`,
+      icon: <Settings className="h-4 w-4" />,
     },
   ]
   

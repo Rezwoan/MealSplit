@@ -1,9 +1,9 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { randomUUID } from 'crypto'
-import { and, eq, ne } from 'drizzle-orm'
+import { and, eq, ne, sql } from 'drizzle-orm'
 import { db } from '../db'
-import { roomMemberships, rooms, users } from '../db/schema'
+import { roomMemberships, rooms, users, userPreferences } from '../db/schema'
 import { requireRoomAdmin, requireRoomMember } from '../lib/room-guards'
 
 const createRoomSchema = z.object({
@@ -96,9 +96,12 @@ export async function registerRoomRoutes(app: FastifyInstance) {
         status: roomMemberships.status,
         inviterConfirmed: roomMemberships.inviterConfirmed,
         inviteeConfirmed: roomMemberships.inviteeConfirmed,
+        accentHue: userPreferences.accentHue,
+        themeMode: userPreferences.themeMode,
       })
       .from(roomMemberships)
       .innerJoin(users, eq(users.id, roomMemberships.userId))
+      .leftJoin(userPreferences, eq(userPreferences.userId, roomMemberships.userId))
       .where(eq(roomMemberships.roomId, roomId.roomId))
 
     return reply.send({ room: roomResult[0], members })
@@ -125,7 +128,7 @@ export async function registerRoomRoutes(app: FastifyInstance) {
           ),
         )
       if (owners.length <= 1) {
-        return reply.code(400).send({ message: 'Cannot leave as the only owner' })
+        return reply.code(400).send({ message: 'Owner cannot leave without transferring ownership' })
       }
     }
 
@@ -136,4 +139,93 @@ export async function registerRoomRoutes(app: FastifyInstance) {
 
     return reply.send({ ok: true })
   })
+
+  app.delete(
+    '/rooms/:roomId/members/:memberId',
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const userId = request.user.sub
+      const { roomId, memberId } = request.params as { roomId: string; memberId: string }
+
+      const admin = await requireRoomAdmin(roomId, userId)
+      if (!admin) {
+        return reply.code(403).send({ message: 'Not allowed' })
+      }
+
+      const membershipResult = await db
+        .select()
+        .from(roomMemberships)
+        .where(eq(roomMemberships.id, memberId))
+        .limit(1)
+
+      const membership = membershipResult[0]
+      if (!membership || membership.roomId !== roomId) {
+        return reply.code(404).send({ message: 'Membership not found' })
+      }
+
+      if (membership.role === 'owner') {
+        return reply
+          .code(400)
+          .send({ message: 'Cannot remove owner without transferring ownership' })
+      }
+
+      await db
+        .update(roomMemberships)
+        .set({ status: 'left', leftAt: new Date() })
+        .where(eq(roomMemberships.id, memberId))
+
+      return reply.send({ ok: true })
+    },
+  )
+
+  const updateRoleSchema = z.object({
+    role: z.enum(['admin', 'member']),
+  })
+
+  app.patch(
+    '/rooms/:roomId/members/:memberId/role',
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const parsed = updateRoleSchema.safeParse(request.body)
+      if (!parsed.success) {
+        return reply.code(400).send({ message: 'Invalid request', issues: parsed.error.flatten() })
+      }
+
+      const userId = request.user.sub
+      const { roomId, memberId } = request.params as { roomId: string; memberId: string }
+
+      const requesterMembership = await requireRoomMember(roomId, userId)
+      if (!requesterMembership || requesterMembership.role !== 'owner') {
+        return reply.code(403).send({ message: 'Only owner can change roles' })
+      }
+
+      const membershipResult = await db
+        .select()
+        .from(roomMemberships)
+        .where(eq(roomMemberships.id, memberId))
+        .limit(1)
+
+      const membership = membershipResult[0]
+      if (!membership || membership.roomId !== roomId) {
+        return reply.code(404).send({ message: 'Membership not found' })
+      }
+
+      if (membership.role === 'owner') {
+        return reply.code(400).send({ message: 'Cannot change owner role' })
+      }
+
+      await db
+        .update(roomMemberships)
+        .set({ role: parsed.data.role })
+        .where(eq(roomMemberships.id, memberId))
+
+      const updated = await db
+        .select()
+        .from(roomMemberships)
+        .where(eq(roomMemberships.id, memberId))
+        .limit(1)
+
+      return reply.send({ membership: updated[0] })
+    },
+  )
 }
