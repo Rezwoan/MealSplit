@@ -17,7 +17,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         {label && (
           <label
             htmlFor={selectId}
-            className="block text-sm font-medium text-neutral-300 mb-1.5"
+            className="block text-sm font-medium mb-1.5"
           >
             {label}
           </label>
@@ -26,10 +26,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           id={selectId}
           className={cn(
-            'w-full px-3 py-2 bg-neutral-900 border rounded-lg text-white',
-            'focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent',
+            'w-full h-10 px-3 py-2 bg-background border border-input rounded-lg',
+            'focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent',
             'disabled:opacity-50 disabled:cursor-not-allowed',
-            error ? 'border-red-500' : 'border-neutral-700',
+            error ? 'border-destructive' : 'border-input',
             className
           )}
           {...props}
@@ -43,7 +43,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             : children}
         </select>
         {error && (
-          <p className="mt-1.5 text-sm text-red-400">{error}</p>
+          <p className="mt-1.5 text-sm text-destructive">{error}</p>
         )}
       </div>
     )

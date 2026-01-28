@@ -2,6 +2,8 @@ import fastify, { FastifyReply, FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import multipart from '@fastify/multipart'
+import fastifyStatic from '@fastify/static'
+import path from 'node:path'
 import { registerHealthRoutes } from './routes/health'
 import { registerAuthRoutes } from './routes/auth'
 import { registerMeRoutes } from './routes/me'
@@ -11,6 +13,7 @@ import { registerBreakPeriodRoutes } from './routes/break-periods'
 import { registerPurchaseRoutes } from './routes/purchases'
 import { registerBalanceRoutes } from './routes/balances'
 import { inventoryRoutes } from './routes/inventory'
+import { registerReceiptRoutes } from './routes/receipts'
 
 export function buildApp() {
   const app = fastify({ logger: true })
@@ -26,6 +29,13 @@ export function buildApp() {
   })
 
   app.register(multipart)
+
+  // Serve static uploaded files
+  app.register(fastifyStatic, {
+    root: path.join(process.cwd(), 'uploads'),
+    prefix: '/uploads/',
+    decorateReply: false,
+  })
 
   app.decorate('authenticate', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -54,6 +64,7 @@ export function buildApp() {
   app.register(registerPurchaseRoutes)
   app.register(registerBalanceRoutes)
   app.register(inventoryRoutes)
+  app.register(registerReceiptRoutes)
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error(error)

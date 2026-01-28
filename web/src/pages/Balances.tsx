@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { Wallet, ArrowRight, AlertTriangle } from 'lucide-react'
 import { apiRequest } from '../lib/api'
 import { formatCents } from '../lib/money'
+import { AppShell } from '../layout/AppShell'
+import { AnimatedPage } from '../ui/AnimatedPage'
+import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card'
+import { Badge } from '../ui/Badge'
+import { LoadingState } from '../ui/LoadingSpinner'
+import { EmptyState } from '../ui/EmptyState'
+import { RoomTabs } from '../components/RoomTabs'
 
 interface BalanceMember {
   userId: string
@@ -23,26 +31,35 @@ export default function Balances() {
   const [memberMap, setMemberMap] = useState<Record<string, string>>({})
   const [transfers, setTransfers] = useState<Transfer[]>([])
   const [currency, setCurrency] = useState('USD')
+  const [roomName, setRoomName] = useState('')
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const loadBalances = async () => {
     if (!roomId) return
+    setLoading(true)
     try {
-      const data = await apiRequest<{
-        currency: string
-        members: BalanceMember[]
-        suggestedTransfers: Transfer[]
-      }>(`/rooms/${roomId}/balances`)
-      setCurrency(data.currency)
-      setMembers(data.members)
-      setTransfers(data.suggestedTransfers)
+      const [balanceData, roomData] = await Promise.all([
+        apiRequest<{
+          currency: string
+          members: BalanceMember[]
+          suggestedTransfers: Transfer[]
+        }>(`/rooms/${roomId}/balances`),
+        apiRequest<{ room: { name: string } }>(`/rooms/${roomId}`),
+      ])
+      setCurrency(balanceData.currency)
+      setMembers(balanceData.members)
+      setTransfers(balanceData.suggestedTransfers)
+      setRoomName(roomData.room.name)
       const map: Record<string, string> = {}
-      data.members.forEach((member) => {
+      balanceData.members.forEach((member) => {
         map[member.userId] = member.displayName
       })
       setMemberMap(map)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load balances')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -51,46 +68,120 @@ export default function Balances() {
   }, [roomId])
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl bg-neutral-900 p-6 shadow">
-        <h1 className="text-2xl font-semibold text-white">Balances</h1>
-        {error ? <p className="mt-2 text-sm text-red-400">{error}</p> : null}
-        <ul className="mt-4 space-y-3">
-          {members.map((member) => (
-            <li
-              key={member.userId}
-              className="flex items-center justify-between rounded-lg border border-neutral-800 bg-black px-4 py-3"
-            >
-              <div>
-                <p className="text-sm font-semibold text-white">{member.displayName}</p>
-                <p className="text-xs text-neutral-500">
-                  Paid {formatCents(currency, member.paidCents)} · Share{' '}
-                  {formatCents(currency, member.shareCents)}
-                </p>
-              </div>
-              <p className="text-sm font-semibold text-emerald-300">
-                {formatCents(currency, member.netCents)}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </div>
+    <AppShell>
+      <AnimatedPage>
+        <div className="space-y-6">
+          {/* Room Header */}
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{roomName || 'Room'}</h1>
+            <p className="text-sm text-muted-foreground mt-1">View member balances and suggested transfers</p>
+          </div>
 
-      <div className="rounded-xl bg-neutral-900 p-6 shadow">
-        <h2 className="text-lg font-semibold text-white">Suggested transfers</h2>
-        <ul className="mt-4 space-y-2">
-          {transfers.length === 0 ? (
-            <li className="text-sm text-neutral-400">No transfers needed.</li>
-          ) : (
-            transfers.map((transfer) => (
-              <li key={`${transfer.fromUserId}-${transfer.toUserId}`} className="text-sm text-neutral-200">
-                {memberMap[transfer.fromUserId] ?? transfer.fromUserId} pays{' '}
-                {memberMap[transfer.toUserId] ?? transfer.toUserId} {formatCents(currency, transfer.amountCents)}
-              </li>
-            ))
+          {/* Room Tabs */}
+          {roomId && <RoomTabs roomId={roomId} />}
+
+          {error && (
+            <div className="flex items-start gap-3 rounded-lg bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">
+              <AlertTriangle className="h-5 w-5 shrink-0" />
+              <span>{error}</span>
+            </div>
           )}
-        </ul>
-      </div>
-    </div>
+
+          {loading ? (
+            <LoadingState message="Loading balances..." />
+          ) : (
+            <>
+              {/* Member Balances */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wallet className="h-5 w-5" />
+                    Member Balances ({members.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {members.length === 0 ? (
+                    <EmptyState
+                      icon={Wallet}
+                      title="No balances yet"
+                      description="Add some purchases to see member balances."
+                    />
+                  ) : (
+                    <ul className="space-y-3">
+                      {members.map((member) => (
+                        <li
+                          key={member.userId}
+                          className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-card-hover transition-colors"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{member.displayName}</p>
+                              <Badge variant={member.netCents >= 0 ? 'success' : 'destructive'}>
+                                {member.netCents >= 0 ? 'Owed' : 'Owes'}
+                              </Badge>
+                            </div>
+                            <div className="flex gap-4 mt-1 text-sm text-muted-foreground">
+                              <span>Paid: {formatCents(currency, member.paidCents)}</span>
+                              <span>·</span>
+                              <span>Share: {formatCents(currency, member.shareCents)}</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className={`text-lg font-semibold ${member.netCents >= 0 ? 'text-success' : 'text-destructive'}`}>
+                              {member.netCents >= 0 ? '+' : ''}{formatCents(currency, member.netCents)}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Suggested Transfers */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ArrowRight className="h-5 w-5" />
+                    Suggested Transfers
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {transfers.length === 0 ? (
+                    <EmptyState
+                      icon={ArrowRight}
+                      title="All settled up!"
+                      description="No transfers needed. Everyone is balanced."
+                    />
+                  ) : (
+                    <ul className="space-y-3">
+                      {transfers.map((transfer) => (
+                        <li
+                          key={`${transfer.fromUserId}-${transfer.toUserId}`}
+                          className="flex items-center gap-3 p-4 rounded-lg border border-border hover:bg-card-hover transition-colors"
+                        >
+                          <div className="flex-1 flex items-center gap-3">
+                            <span className="font-medium">
+                              {memberMap[transfer.fromUserId] ?? transfer.fromUserId}
+                            </span>
+                            <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <span className="font-medium">
+                              {memberMap[transfer.toUserId] ?? transfer.toUserId}
+                            </span>
+                          </div>
+                          <span className="text-lg font-semibold text-primary">
+                            {formatCents(currency, transfer.amountCents)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
+      </AnimatedPage>
+    </AppShell>
   )
 }

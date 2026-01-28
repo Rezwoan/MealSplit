@@ -1,7 +1,18 @@
 import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { Calendar, Plus, AlertTriangle } from 'lucide-react'
 import { apiRequest } from '../lib/api'
+import { AppShell } from '../layout/AppShell'
+import { AnimatedPage } from '../ui/AnimatedPage'
+import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card'
+import { Button } from '../ui/Button'
+import { Input } from '../ui/Input'
+import { Select } from '../ui/Select'
+import { Badge } from '../ui/Badge'
+import { LoadingState } from '../ui/LoadingSpinner'
+import { EmptyState } from '../ui/EmptyState'
+import { RoomTabs } from '../components/RoomTabs'
 
 interface BreakPeriod {
   id: string
@@ -25,24 +36,30 @@ export default function BreakPeriods() {
   const [currentUserId, setCurrentUserId] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [roomName, setRoomName] = useState('')
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const loadData = async () => {
     if (!roomId) return
+    setLoading(true)
     try {
       const [breakData, roomData, meData] = await Promise.all([
         apiRequest<{ breakPeriods: BreakPeriod[] }>(`/rooms/${roomId}/break-periods`),
-        apiRequest<{ members: Member[] }>(`/rooms/${roomId}`),
+        apiRequest<{ room: { name: string }; members: Member[] }>(`/rooms/${roomId}`),
         apiRequest<{ user: { id: string } }>('/me'),
       ])
       setBreaks(breakData.breakPeriods)
       setMembers(roomData.members)
+      setRoomName(roomData.room.name)
       setCurrentUserId(meData.user.id)
       if (!selectedUserId) {
         setSelectedUserId(meData.user.id)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load break periods')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -77,86 +94,138 @@ export default function BreakPeriods() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl bg-neutral-900 p-6 shadow">
-        <h1 className="text-2xl font-semibold text-white">Break periods</h1>
-        {error ? <p className="mt-2 text-sm text-red-400">{error}</p> : null}
-        <ul className="mt-4 space-y-3">
-          {breaks.length === 0 ? (
-            <li className="text-sm text-neutral-400">No break periods.</li>
-          ) : (
-            breaks.map((bp) => (
-              <li
-                key={bp.id}
-                className="rounded-lg border border-neutral-800 bg-black px-4 py-3 text-sm text-neutral-200"
-              >
-                <span className="font-semibold text-white">
-                  {members.find((member) => member.userId === bp.userId)?.displayName ?? bp.userId}
-                </span>{' '}
-                · {bp.startDate} → {bp.endDate}
-              </li>
-            ))
-          )}
-        </ul>
-      </div>
+    <AppShell>
+      <AnimatedPage>
+        <div className="space-y-6">
+          {/* Room Header */}
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{roomName || 'Room'}</h1>
+            <p className="text-sm text-muted-foreground mt-1">Manage member break periods</p>
+          </div>
 
-      <div className="rounded-xl bg-neutral-900 p-6 shadow">
-        <h2 className="text-lg font-semibold text-white">Add break period</h2>
-        <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
-          <div>
-            <label className="text-sm text-neutral-300" htmlFor="userId">
-              Member
-            </label>
-            <select
-              id="userId"
-              className="mt-1 w-full rounded-lg border border-neutral-800 bg-black px-3 py-2 text-sm text-white"
-              value={selectedUserId}
-              onChange={(event) => setSelectedUserId(event.target.value)}
-            >
-              {members.map((member) => (
-                <option key={member.userId} value={member.userId}>
-                  {member.displayName} ({member.role})
-                </option>
-              ))}
-            </select>
-          </div>
-          {!isAdmin && !isOwnSelection ? (
-            <p className="text-xs text-neutral-500">Only admins can set breaks for others.</p>
-          ) : null}
-          <div>
-            <label className="text-sm text-neutral-300" htmlFor="startDate">
-              Start date
-            </label>
-            <input
-              id="startDate"
-              type="date"
-              className="mt-1 w-full rounded-lg border border-neutral-800 bg-black px-3 py-2 text-sm text-white"
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="text-sm text-neutral-300" htmlFor="endDate">
-              End date
-            </label>
-            <input
-              id="endDate"
-              type="date"
-              className="mt-1 w-full rounded-lg border border-neutral-800 bg-black px-3 py-2 text-sm text-white"
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            className="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-300"
-          >
-            Save break period
-          </button>
-        </form>
-      </div>
-    </div>
+          {/* Room Tabs */}
+          {roomId && <RoomTabs roomId={roomId} />}
+
+          {error && (
+            <div className="flex items-start gap-3 rounded-lg bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">
+              <AlertTriangle className="h-5 w-5 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {loading ? (
+            <LoadingState message="Loading break periods..." />
+          ) : (
+            <>
+              {/* Add Break Period Form */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Plus className="h-5 w-5" />
+                    Add Break Period
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <form className="space-y-4" onSubmit={handleSubmit}>
+                    <Select
+                      label="Member"
+                      value={selectedUserId}
+                      onChange={(e) => setSelectedUserId(e.target.value)}
+                      required
+                    >
+                      {members.map((member) => (
+                        <option key={member.userId} value={member.userId}>
+                          {member.displayName} ({member.role})
+                        </option>
+                      ))}
+                    </Select>
+
+                    {!isAdmin && !isOwnSelection && (
+                      <div className="flex items-start gap-2 rounded-lg bg-warning/10 border border-warning/20 p-3 text-sm text-warning">
+                        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                        <span>Only admins can set break periods for other members.</span>
+                      </div>
+                    )}
+
+                    <Input
+                      label="Start date"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      required
+                    />
+
+                    <Input
+                      label="End date"
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      required
+                    />
+
+                    <Button 
+                      type="submit" 
+                      variant="primary" 
+                      className="w-full"
+                      disabled={!isAdmin && !isOwnSelection}
+                    >
+                      Save Break Period
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Break Periods List */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Break Periods ({breaks.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {breaks.length === 0 ? (
+                    <EmptyState
+                      icon={Calendar}
+                      title="No break periods"
+                      description="Add break periods to exclude members from cost sharing during specific date ranges."
+                    />
+                  ) : (
+                    <ul className="space-y-3">
+                      {breaks.map((bp) => {
+                        const member = members.find((m) => m.userId === bp.userId)
+                        return (
+                          <li
+                            key={bp.id}
+                            className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-card-hover transition-colors"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium">
+                                  {member?.displayName ?? bp.userId}
+                                </p>
+                                {member && member.role !== 'member' && (
+                                  <Badge variant="default">{member.role}</Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                                <Calendar className="h-3.5 w-3.5" />
+                                <span>{new Date(bp.startDate).toLocaleDateString()}</span>
+                                <span>→</span>
+                                <span>{new Date(bp.endDate).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
+      </AnimatedPage>
+    </AppShell>
   )
 }

@@ -14,7 +14,8 @@
 5. Import [api/drizzle/0002_rooms.sql](../api/drizzle/0002_rooms.sql).
 6. Import [api/drizzle/0003_purchases.sql](../api/drizzle/0003_purchases.sql).
 7. Import [api/drizzle/0004_inventory.sql](../api/drizzle/0004_inventory.sql).
-8. Click **Go** to import each file in order.
+8. Import [api/drizzle/0005_receipts.sql](../api/drizzle/0005_receipts.sql).
+9. Click **Go** to import each file in order.
 
 ## 3) Configure API environment
 Create `api/.env` and set:

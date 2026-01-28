@@ -205,3 +205,19 @@ export const inventoryMovements = mysqlTable('inventory_movements', {
     .references(() => users.id, { onDelete: 'restrict' }),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 })
+
+export const purchaseReceipts = mysqlTable('purchase_receipts', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  purchaseId: varchar('purchase_id', { length: 36 })
+    .notNull()
+    .unique()
+    .references(() => purchases.id, { onDelete: 'cascade' }),
+  filePath: varchar('file_path', { length: 500 }).notNull(),
+  originalFilename: varchar('original_filename', { length: 255 }).notNull(),
+  mimeType: varchar('mime_type', { length: 100 }).notNull(),
+  fileSizeBytes: int('file_size_bytes').notNull(),
+  uploadedByUserId: varchar('uploaded_by_user_id', { length: 36 })
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+})
