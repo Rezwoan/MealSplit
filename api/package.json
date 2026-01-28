@@ -4,10 +4,12 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "npm run db:bootstrap && tsx watch src/index.ts",
     "dev:nodemon": "nodemon --watch src --ext ts --exec node -r ts-node/register src/index.ts",
+    "dev:nocheck": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "db:bootstrap": "tsx scripts/bootstrap-db.ts",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
     "db:sql": "drizzle-kit generate --config drizzle.config.ts",
     "kill:port": "echo Run this in PowerShell: Get-Process -Id (Get-NetTCPConnection -LocalPort 3001).OwningProcess | Stop-Process -Force"

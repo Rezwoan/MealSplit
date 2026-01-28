@@ -1,23 +1,23 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { User, Palette, BarChart3 } from 'lucide-react'
 import { AppShell } from '../layout/AppShell'
 import { AnimatedPage } from '../ui/AnimatedPage'
+import { PageHeader } from '../ui/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { LoadingState } from '../ui/LoadingSpinner'
-import { apiRequest } from '../lib/api'
+import { ErrorState } from '../ui/ErrorState'
+import { apiRequest, ApiRequestError } from '../lib/api'
 import { formatCents } from '../lib/money'
 
 interface UserProfile {
   id: string
   email: string
   displayName: string
-  avatarUrl: string | null
-  bio: string | null
   preferences: {
     themeMode: 'light' | 'dark' | 'amoled'
-    accentHue: number
+    accentColor: string
   }
 }
 
@@ -34,30 +34,29 @@ interface UserStats {
 }
 
 const ACCENT_PRESETS = [
-  { name: 'Cyan', hue: 190 },
-  { name: 'Blue', hue: 220 },
-  { name: 'Purple', hue: 270 },
-  { name: 'Pink', hue: 330 },
-  { name: 'Red', hue: 0 },
-  { name: 'Orange', hue: 30 },
-  { name: 'Yellow', hue: 60 },
-  { name: 'Green', hue: 140 },
+  { name: 'Blue', color: '#3B82F6' },
+  { name: 'Purple', color: '#A855F7' },
+  { name: 'Pink', color: '#EC4899' },
+  { name: 'Red', color: '#EF4444' },
+  { name: 'Orange', color: '#F97316' },
+  { name: 'Amber', color: '#F59E0B' },
+  { name: 'Green', color: '#10B981' },
+  { name: 'Cyan', color: '#06B6D4' },
 ]
 
 export default function Profile() {
   const [user, setUser] = useState<UserProfile | null>(null)
   const [stats, setStats] = useState<UserStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<ApiRequestError | null>(null)
 
   // Profile form state
   const [displayName, setDisplayName] = useState('')
-  const [bio, setBio] = useState('')
   const [profileSaving, setProfileSaving] = useState(false)
 
   // Preferences state
   const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'amoled'>('dark')
-  const [accentHue, setAccentHue] = useState(190)
+  const [accentColor, setAccentColor] = useState('#3B82F6')
   const [preferencesSaving, setPreferencesSaving] = useState(false)
 
   useEffect(() => {
@@ -66,6 +65,7 @@ export default function Profile() {
 
   const loadData = async () => {
     setLoading(true)
+    setError(null)
     try {
       const [userData, statsData] = await Promise.all([
         apiRequest<{ user: UserProfile }>('/me'),
@@ -74,26 +74,38 @@ export default function Profile() {
       setUser(userData.user)
       setStats(statsData.stats)
       setDisplayName(userData.user.displayName)
-      setBio(userData.user.bio || '')
       setThemeMode(userData.user.preferences.themeMode)
-      setAccentHue(userData.user.preferences.accentHue)
+      setAccentColor(userData.user.preferences.accentColor)
       
       // Apply theme immediately
-      applyTheme(userData.user.preferences.themeMode, userData.user.preferences.accentHue)
+      applyTheme(userData.user.preferences.themeMode, userData.user.preferences.accentColor)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load profile')
+      if (err instanceof ApiRequestError) {
+        setError(err)
+      } else {
+        setError(new ApiRequestError({
+          status: 0,
+          message: err instanceof Error ? err.message : 'Failed to load profile',
+        }))
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  const applyTheme = (mode: string, hue: number) => {
+  function hexToRgb(hex: string): string {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+    if (!result) return '59 130 246'
+    return `${parseInt(result[1], 16)} ${parseInt(result[2], 16)} ${parseInt(result[3], 16)}`
+  }
+
+  const applyTheme = (mode: string, color: string) => {
     document.documentElement.setAttribute('data-theme', mode)
-    document.documentElement.style.setProperty('--accent-hue', hue.toString())
+    document.documentElement.style.setProperty('--accent', hexToRgb(color))
     
     // Save to localStorage for fast boot
     localStorage.setItem('theme', mode)
-    localStorage.setItem('accentHue', hue.toString())
+    localStorage.setItem('accentColor', color)
   }
 
   const handleSaveProfile = async () => {
@@ -105,12 +117,18 @@ export default function Profile() {
         method: 'PATCH',
         body: JSON.stringify({
           displayName,
-          bio: bio || undefined,
         }),
       })
       setUser({ ...user, ...response.user })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update profile')
+      if (err instanceof ApiRequestError) {
+        setError(err)
+      } else {
+        setError(new ApiRequestError({
+          status: 0,
+          message: err instanceof Error ? err.message : 'Failed to update profile',
+        }))
+      }
     } finally {
       setProfileSaving(false)
     }
@@ -124,26 +142,29 @@ export default function Profile() {
         method: 'PATCH',
         body: JSON.stringify({
           themeMode,
-          accentHue,
+          accentColor,
         }),
       })
-      applyTheme(themeMode, accentHue)
+      applyTheme(themeMode, accentColor)
       if (user) {
         setUser({
           ...user,
-          preferences: { themeMode, accentHue },
+          preferences: { themeMode, accentColor },
         })
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update preferences')
+      if (err instanceof ApiRequestError) {
+        setError(err)
+      } else {
+        setError(new ApiRequestError({
+          status: 0,
+          message: err instanceof Error ? err.message : 'Failed to update preferences',
+        }))
+      }
     } finally {
       setPreferencesSaving(false)
     }
   }
-
-  const accentColor = useMemo(() => {
-    return `hsl(${accentHue}, 70%, 50%)`
-  }, [accentHue])
 
   if (loading) {
     return (
@@ -155,11 +176,32 @@ export default function Profile() {
     )
   }
 
-  if (!user) {
+  if (error) {
     return (
       <AppShell>
         <AnimatedPage>
-          <p className="text-center text-muted-foreground">Failed to load profile</p>
+          <ErrorState
+            title="Failed to Load Profile"
+            message={error.message}
+            code={error.code}
+            details={error.details}
+            migrationHints={error.migrationHints}
+            onRetry={loadData}
+          />
+        </AnimatedPage>
+      </AppShell>
+    )
+  }
+
+  if (!user || !stats) {
+    return (
+      <AppShell>
+        <AnimatedPage>
+          <ErrorState
+            title="Profile Not Found"
+            message="Unable to load your profile data"
+            onRetry={loadData}
+          />
         </AnimatedPage>
       </AppShell>
     )
@@ -168,188 +210,138 @@ export default function Profile() {
   return (
     <AppShell>
       <AnimatedPage>
-        <div className="space-y-6 max-w-4xl mx-auto">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Profile & Settings</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage your account, preferences, and view your stats
-            </p>
-          </div>
+        <PageHeader
+          title="Profile & Settings"
+          description="Manage your account, customize your experience, and view your activity"
+        />
 
-          {error && (
-            <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-              <p className="text-sm text-destructive">{error}</p>
-            </div>
-          )}
-
-          {/* Profile Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Profile Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form
-                className="space-y-4"
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  handleSaveProfile()
-                }}
-              >
-                <Input
-                  label="Display Name"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  required
-                  maxLength={100}
-                />
-                <Input
-                  label="Email"
-                  value={user.email}
-                  disabled
-                  className="opacity-60"
-                />
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Bio <span className="text-muted-foreground">(optional)</span>
-                  </label>
-                  <textarea
-                    className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground resize-none"
-                    rows={3}
-                    maxLength={280}
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    placeholder="Tell others about yourself..."
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {bio.length}/280 characters
-                  </p>
-                </div>
-                <Button type="submit" variant="primary" disabled={profileSaving}>
-                  {profileSaving ? 'Saving...' : 'Save Profile'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Theme & Appearance */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Palette className="h-5 w-5" />
-                Theme & Appearance
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {/* Theme Mode */}
-                <div>
-                  <label className="block text-sm font-medium mb-3">Theme Mode</label>
-                  <div className="flex gap-3">
-                    <Button
-                      type="button"
-                      variant={themeMode === 'light' ? 'primary' : 'secondary'}
-                      onClick={() => setThemeMode('light')}
-                      className="flex-1"
-                    >
-                      Light
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={themeMode === 'dark' ? 'primary' : 'secondary'}
-                      onClick={() => setThemeMode('dark')}
-                      className="flex-1"
-                    >
-                      Dark
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={themeMode === 'amoled' ? 'primary' : 'secondary'}
-                      onClick={() => setThemeMode('amoled')}
-                      className="flex-1"
-                    >
-                      AMOLED
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Accent Color */}
-                <div>
-                  <label className="block text-sm font-medium mb-3">Accent Color</label>
-                  <div className="grid grid-cols-4 gap-3 mb-4">
-                    {ACCENT_PRESETS.map((preset) => (
-                      <button
-                        key={preset.hue}
-                        type="button"
-                        onClick={() => setAccentHue(preset.hue)}
-                        className={`p-3 rounded-lg border-2 transition-all ${
-                          accentHue === preset.hue
-                            ? 'border-foreground scale-105'
-                            : 'border-border hover:border-foreground/50'
-                        }`}
-                        style={{ backgroundColor: `hsl(${preset.hue}, 70%, 50%)` }}
-                        title={preset.name}
-                      >
-                        <span className="sr-only">{preset.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-2">
-                      Custom Hue (0-360)
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="360"
-                      value={accentHue}
-                      onChange={(e) => setAccentHue(parseInt(e.target.value))}
-                      className="w-full"
-                      style={{
-                        background: `linear-gradient(to right, 
-                          hsl(0, 70%, 50%), 
-                          hsl(60, 70%, 50%), 
-                          hsl(120, 70%, 50%), 
-                          hsl(180, 70%, 50%), 
-                          hsl(240, 70%, 50%), 
-                          hsl(300, 70%, 50%), 
-                          hsl(360, 70%, 50%))`,
-                      }}
-                    />
-                    <div className="flex items-center gap-3 mt-2">
-                      <div
-                        className="w-12 h-12 rounded-lg border border-border"
-                        style={{ backgroundColor: accentColor }}
-                      />
-                      <span className="text-sm font-mono">{accentHue}°</span>
-                    </div>
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={handleSavePreferences}
-                  disabled={preferencesSaving}
-                  className="w-full"
-                >
-                  {preferencesSaving ? 'Saving...' : 'Save Preferences'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Stats Section */}
-          {stats && (
-            <Card>
+        {/* Profile & Stats Grid */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Left Column: Profile + Preferences */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Profile Section */}
+            <Card className="border-border/50">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  Your Statistics
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <User className="h-5 w-5 text-primary" />
+                  Profile Information
                 </CardTitle>
               </CardHeader>
+              <CardContent>
+                <form
+                  className="space-y-5"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    handleSaveProfile()
+                  }}
+                >
+                  <div className="space-y-4">
+                    <Input
+                      label="Display Name"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      required
+                      maxLength={100}
+                    />
+                    <Input
+                      label="Email"
+                      value={user.email}
+                      disabled
+                      className="opacity-60"
+                    />
+                  </div>
+                  <Button type="submit" variant="primary" loading={profileSaving}>
+                    Save Profile
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* Theme & Appearance */}
+            <Card className="border-border/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Palette className="h-5 w-5 text-primary" />
+                  Theme & Appearance
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {/* Theme Mode */}
+                  <div>
+                    <label className="block text-sm font-medium mb-3">Theme Mode</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      <Button
+                        type="button"
+                        variant={themeMode === 'light' ? 'primary' : 'secondary'}
+                        onClick={() => setThemeMode('light')}
+                      >
+                        Light
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={themeMode === 'dark' ? 'primary' : 'secondary'}
+                        onClick={() => setThemeMode('dark')}
+                      >
+                        Dark
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={themeMode === 'amoled' ? 'primary' : 'secondary'}
+                        onClick={() => setThemeMode('amoled')}
+                      >
+                        AMOLED
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Accent Color */}
+                  <div>
+                    <label className="block text-sm font-medium mb-3">Accent Color</label>
+                    <div className="grid grid-cols-4 gap-3">
+                      {ACCENT_PRESETS.map((preset) => (
+                        <button
+                          key={preset.color}
+                          type="button"
+                          onClick={() => setAccentColor(preset.color)}
+                          className={`h-12 rounded-xl border-2 transition-all ${
+                            accentColor === preset.color
+                              ? 'border-foreground ring-2 ring-primary/30 scale-105'
+                              : 'border-border hover:border-foreground/50 hover:scale-105'
+                          }`}
+                          style={{ backgroundColor: preset.color }}
+                          title={preset.name}
+                        >
+                          <span className="sr-only">{preset.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={handleSavePreferences}
+                    disabled={preferencesSaving}
+                    className="w-full"
+                  >
+                    {preferencesSaving ? 'Saving...' : 'Save Preferences'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column: Stats */}
+          <div className="space-y-6">
+            {stats && (
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                    Your Statistics
+                  </CardTitle>
+                </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -413,12 +405,13 @@ export default function Profile() {
                           {formatCents('USD', stats.last30Days.totalPaidCents)}
                         </span>
                       </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
       </AnimatedPage>
     </AppShell>

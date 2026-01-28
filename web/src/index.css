@@ -2,19 +2,21 @@
 
 @layer base {
   :root {
-    /* Accent hue variable (set dynamically from user preference) */
-    --accent-hue: 190;
+    /* Accent color (set dynamically from user preference as hex) */
+    --accent: 59 130 246;
+    --accent-foreground: 255 255 255;
     
     /* Light Theme (default) */
-    --background: 0 0% 100%;
+    --background: 240 10% 98%;
+    --background-subtle: 240 10% 96%;
     --foreground: 222 47% 11%;
     
     --card: 0 0% 100%;
-    --card-hover: 0 0% 98%;
+    --card-hover: 240 10% 99%;
     
-    --primary: var(--accent-hue) 70% 50%;
-    --primary-hover: var(--accent-hue) 70% 45%;
-    --primary-foreground: 0 0% 100%;
+    --primary: var(--accent);
+    --primary-hover: var(--accent);
+    --primary-foreground: var(--accent-foreground);
     
     --secondary: 214 32% 91%;
     --secondary-hover: 214 32% 86%;
@@ -36,14 +38,15 @@
   /* Dark Theme */
   [data-theme="dark"] {
     --background: 222 47% 11%;
+    --background-subtle: 222 47% 9%;
     --foreground: 210 40% 98%;
     
     --card: 222 47% 14%;
     --card-hover: 222 47% 16%;
     
-    --primary: var(--accent-hue) 70% 50%;
-    --primary-hover: var(--accent-hue) 70% 55%;
-    --primary-foreground: 0 0% 100%;
+    --primary: var(--accent);
+    --primary-hover: var(--accent);
+    --primary-foreground: var(--accent-foreground);
     
     --secondary: 217 33% 17%;
     --secondary-hover: 217 33% 20%;
@@ -63,14 +66,15 @@
   /* AMOLED Theme (pure black for OLED screens) */
   [data-theme="amoled"] {
     --background: 0 0% 0%;
+    --background-subtle: 0 0% 2%;
     --foreground: 210 40% 98%;
     
     --card: 0 0% 4%;
     --card-hover: 0 0% 8%;
     
-    --primary: var(--accent-hue) 70% 50%;
-    --primary-hover: var(--accent-hue) 70% 55%;
-    --primary-foreground: 0 0% 100%;
+    --primary: var(--accent);
+    --primary-hover: var(--accent);
+    --primary-foreground: var(--accent-foreground);
     
     --secondary: 0 0% 10%;
     --secondary-hover: 0 0% 14%;

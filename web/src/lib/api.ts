@@ -1,7 +1,34 @@
 import { API_BASE_URL } from '../config'
 import { getToken } from './auth'
 
-export async function apiRequest<T>(path: string, options: RequestInit = {}) {
+export interface ApiError {
+  status: number
+  code?: string
+  message: string
+  details?: string
+  missing?: string[]
+  migrationHints?: string[]
+}
+
+export class ApiRequestError extends Error {
+  status: number
+  code?: string
+  details?: string
+  missing?: string[]
+  migrationHints?: string[]
+
+  constructor(error: ApiError) {
+    super(error.message)
+    this.name = 'ApiRequestError'
+    this.status = error.status
+    this.code = error.code
+    this.details = error.details
+    this.missing = error.missing
+    this.migrationHints = error.migrationHints
+  }
+}
+
+export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken()
   const headers = new Headers(options.headers)
   headers.set('Content-Type', 'application/json')
@@ -9,20 +36,40 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}) {
     headers.set('Authorization', `Bearer ${token}`)
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-  })
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers,
+    })
 
-  const text = await response.text()
-  const data = text ? JSON.parse(text) : null
+    const text = await response.text()
+    const data = text ? JSON.parse(text) : null
 
-  if (!response.ok) {
-    const message = data?.message ?? 'Request failed'
-    throw new Error(message)
+    if (!response.ok) {
+      throw new ApiRequestError({
+        status: response.status,
+        code: data?.code,
+        message: data?.message ?? `Request failed with status ${response.status}`,
+        details: data?.details,
+        missing: data?.missing,
+        migrationHints: data?.migrationHints,
+      })
+    }
+
+    return data as T
+  } catch (err) {
+    if (err instanceof ApiRequestError) {
+      throw err
+    }
+    
+    // Network or parsing error
+    throw new ApiRequestError({
+      status: 0,
+      code: 'NETWORK_ERROR',
+      message: err instanceof Error ? err.message : 'Network request failed',
+      details: 'Unable to connect to API server. Is it running?',
+    })
   }
-
-  return data as T
 }
 
 // Receipt API functions

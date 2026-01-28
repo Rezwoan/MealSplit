@@ -2,7 +2,7 @@ import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Users, AlertTriangle, Package, Copy, Check } from 'lucide-react'
-import { apiRequest } from '../lib/api'
+import { apiRequest, ApiRequestError } from '../lib/api'
 import { AppShell } from '../layout/AppShell'
 import { AnimatedPage } from '../ui/AnimatedPage'
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card'
@@ -10,8 +10,10 @@ import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Badge } from '../ui/Badge'
 import { LoadingState } from '../ui/LoadingSpinner'
+import { ErrorState } from '../ui/ErrorState'
 import { EmptyState } from '../ui/EmptyState'
 import { RoomTabs } from '../components/RoomTabs'
+import { PageHeader } from '../ui/PageHeader'
 
 interface Member {
   id: string
@@ -42,7 +44,8 @@ export default function Dashboard() {
   const [members, setMembers] = useState<Member[]>([])
   const [me, setMe] = useState<{ id: string } | null>(null)
   const [alerts, setAlerts] = useState<Alerts | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<ApiRequestError | null>(null)
   const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [inviteEmail, setInviteEmail] = useState('')
   const [expiresInDays, setExpiresInDays] = useState('')
@@ -50,6 +53,8 @@ export default function Dashboard() {
 
   const loadRoom = async () => {
     if (!roomId) return
+    setLoading(true)
+    setError(null)
     try {
       const [roomData, meData, alertsData] = await Promise.all([
         apiRequest<{ room: RoomDetail; members: Member[] }>(`/rooms/${roomId}`),
@@ -61,7 +66,16 @@ export default function Dashboard() {
       setMe(meData.user)
       setAlerts(alertsData)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load room')
+      if (err instanceof ApiRequestError) {
+        setError(err)
+      } else {
+        setError(new ApiRequestError({
+          status: 0,
+          message: err instanceof Error ? err.message : 'Failed to load room',
+        }))
+      }
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -114,7 +128,7 @@ export default function Dashboard() {
   const currentMember = members.find((member) => member.userId === me?.id)
   const isAdmin = currentMember?.role === 'owner' || currentMember?.role === 'admin'
 
-  if (!room) {
+  if (loading) {
     return (
       <AppShell>
         <AnimatedPage>
@@ -124,23 +138,51 @@ export default function Dashboard() {
     )
   }
 
+  if (error) {
+    return (
+      <AppShell>
+        <AnimatedPage>
+          <ErrorState
+            title="Failed to Load Room"
+            message={error.message}
+            code={error.code}
+            details={error.details}
+            migrationHints={error.migrationHints}
+            onRetry={loadRoom}
+          />
+        </AnimatedPage>
+      </AppShell>
+    )
+  }
+
+  if (!room) {
+    return (
+      <AppShell>
+        <AnimatedPage>
+          <ErrorState
+            title="Room Not Found"
+            message="Unable to load room data"
+            onRetry={loadRoom}
+          />
+        </AnimatedPage>
+      </AppShell>
+    )
+  }
+
   return (
     <AppShell>
       <AnimatedPage>
-        <div className="space-y-6">
-          {/* Room Header */}
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{room.name}</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Currency: {room.currency} · {members.length} {members.length === 1 ? 'member' : 'members'}
-            </p>
-          </div>
+        <PageHeader
+          title={room.name}
+          description={`${room.currency} · ${members.length} ${members.length === 1 ? 'member' : 'members'}`}
+        />
 
-          {/* Room Tabs */}
-          {roomId && <RoomTabs roomId={roomId} />}
+        {/* Room Tabs */}
+        {roomId && <RoomTabs roomId={roomId} />}
 
+        <div className="space-y-6 mt-6">
           {error && (
-            <div className="flex items-start gap-3 rounded-lg bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">
+            <div className="flex items-start gap-3 rounded-xl bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">
               <AlertTriangle className="h-5 w-5 shrink-0" />
               <span>{error}</span>
             </div>
@@ -148,9 +190,9 @@ export default function Dashboard() {
 
           {/* Inventory Alerts */}
           {alerts && (alerts.lowStock.length > 0 || alerts.expiringSoon.length > 0) && (
-            <Card>
+            <Card className="border-border/50 shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-xl">
                   <AlertTriangle className="h-5 w-5 text-warning" />
                   Inventory Alerts
                 </CardTitle>
@@ -159,15 +201,15 @@ export default function Dashboard() {
                 <div className="space-y-4">
                   {alerts.lowStock.length > 0 && (
                     <div>
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2 mb-3">
                         <Badge variant="destructive">Low Stock</Badge>
                         <span className="text-sm text-muted-foreground">{alerts.lowStock.length} items</span>
                       </div>
                       <ul className="space-y-2">
                         {alerts.lowStock.map((item) => (
-                          <li key={item.itemId} className="text-sm flex items-center justify-between py-2 border-b border-border last:border-0">
+                          <li key={item.itemId} className="flex items-center justify-between py-2.5 border-b border-border/50 last:border-0">
                             <span className="font-medium">{item.name}</span>
-                            <span className="text-muted-foreground">
+                            <span className="text-sm text-muted-foreground">
                               {item.currentAmount} / {item.threshold}
                             </span>
                           </li>
@@ -177,15 +219,15 @@ export default function Dashboard() {
                   )}
                   {alerts.expiringSoon.length > 0 && (
                     <div>
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2 mb-3">
                         <Badge variant="warning">Expiring Soon</Badge>
                         <span className="text-sm text-muted-foreground">{alerts.expiringSoon.length} items</span>
                       </div>
                       <ul className="space-y-2">
                         {alerts.expiringSoon.map((item) => (
-                          <li key={item.itemId} className="text-sm flex items-center justify-between py-2 border-b border-border last:border-0">
+                          <li key={item.itemId} className="flex items-center justify-between py-2.5 border-b border-border/50 last:border-0">
                             <span className="font-medium">{item.name}</span>
-                            <span className="text-muted-foreground">
+                            <span className="text-sm text-muted-foreground">
                               {item.daysLeft} {item.daysLeft === 1 ? 'day' : 'days'} left
                             </span>
                           </li>
@@ -194,8 +236,8 @@ export default function Dashboard() {
                     </div>
                   )}
                   <Link to={`/rooms/${roomId}/inventory`}>
-                    <Button variant="ghost" className="w-full">
-                      <Package className="h-4 w-4 mr-2" />
+                    <Button variant="ghost" className="w-full mt-2">
+                      <Package className="h-4 w-4" />
                       View Inventory
                     </Button>
                   </Link>
@@ -206,12 +248,12 @@ export default function Dashboard() {
 
           {/* Create Invite (Admin Only) */}
           {isAdmin && (
-            <Card>
+            <Card className="border-border/50 shadow-sm">
               <CardHeader>
-                <CardTitle>Invite Members</CardTitle>
+                <CardTitle className="text-xl">Invite Members</CardTitle>
               </CardHeader>
               <CardContent>
-                <form className="space-y-4" onSubmit={handleInvite}>
+                <form className="space-y-5" onSubmit={handleInvite}>
                   <Input
                     label="Invitee email (optional)"
                     type="email"
@@ -235,8 +277,8 @@ export default function Dashboard() {
                   </Button>
 
                   {inviteCode && (
-                    <div className="flex items-center gap-2 p-3 bg-success/10 border border-success/20 rounded-lg">
-                      <code className="flex-1 text-sm font-mono text-success">{inviteCode}</code>
+                    <div className="flex items-center gap-2 p-3 bg-success/10 border border-success/20 rounded-xl">
+                      <code className="flex-1 text-sm font-mono font-medium text-success">{inviteCode}</code>
                       <Button
                         type="button"
                         variant="ghost"
@@ -253,10 +295,10 @@ export default function Dashboard() {
           )}
 
           {/* Members List */}
-          <Card>
+          <Card className="border-border/50 shadow-sm">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Users className="h-5 w-5 text-primary" />
                 Members ({members.length})
               </CardTitle>
             </CardHeader>
@@ -309,10 +351,10 @@ export default function Dashboard() {
                     return (
                       <li
                         key={member.id}
-                        className="flex flex-col gap-3 p-4 rounded-lg border border-border hover:bg-card-hover transition-colors sm:flex-row sm:items-center sm:justify-between"
+                        className="flex flex-col gap-3 p-4 rounded-xl border border-border/50 hover:bg-muted/30 transition-all duration-200 sm:flex-row sm:items-center sm:justify-between"
                       >
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-medium">{member.displayName}</p>
                             <Badge variant={member.status === 'active' ? 'success' : 'secondary'}>
                               {member.status}

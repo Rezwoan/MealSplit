@@ -44,25 +44,27 @@ export default function Signup() {
   return (
     <AppShell>
       <AnimatedPage>
-        <div className="flex min-h-[calc(100vh-16rem)] items-center justify-center">
-          <div className="w-full max-w-md space-y-6">
+        <div className="flex min-h-[calc(100vh-20rem)] items-center justify-center py-12">
+          <div className="w-full max-w-md space-y-8">
             <div className="text-center">
-              <h1 className="text-3xl font-bold tracking-tight">Create an account</h1>
-              <p className="mt-2 text-sm text-muted-foreground">
+              <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+                Create an account
+              </h1>
+              <p className="mt-3 text-base text-muted-foreground">
                 Get started with MealSplit
               </p>
             </div>
 
-            <Card>
-              <CardContent className="pt-6">
+            <Card className="border-border/50 shadow-lg">
+              <CardContent className="pt-6 pb-8 px-8">
                 {error && (
-                  <div className="mb-4 flex items-start gap-3 rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
-                    <AlertCircle className="h-5 w-5 shrink-0" />
-                    <span>{error}</span>
+                  <div className="mb-6 flex items-start gap-3 rounded-xl bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">
+                    <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                    <span className="leading-relaxed">{error}</span>
                   </div>
                 )}
 
-                <form className="space-y-4" onSubmit={handleSubmit}>
+                <form className="space-y-5" onSubmit={handleSubmit}>
                   <Input
                     label="Display name"
                     type="text"
@@ -97,15 +99,15 @@ export default function Signup() {
                     variant="primary"
                     size="lg"
                     loading={loading}
-                    className="w-full"
+                    className="w-full mt-6"
                   >
                     Create account
                   </Button>
                 </form>
 
-                <div className="mt-6 text-center text-sm">
+                <div className="mt-8 pt-6 border-t border-border text-center text-sm">
                   <span className="text-muted-foreground">Already have an account? </span>
-                  <Link to="/login" className="font-medium text-primary hover:underline">
+                  <Link to="/login" className="font-semibold text-primary hover:underline underline-offset-4">
                     Sign in
                   </Link>
                 </div>

@@ -3,51 +3,74 @@ import { db } from '../db'
 import { users, userPreferences, purchases, purchaseSplits, settlements } from '../db/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { z } from 'zod'
+import { ensureUserPreferences, checkSchema } from '../db/schema-check'
 
 export async function registerMeRoutes(app: FastifyInstance) {
   app.get('/me', { preHandler: [app.authenticate] }, async (request, reply) => {
     const userId = request.user.sub
 
-    const result = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        displayName: users.displayName,
-        avatarUrl: users.avatarUrl,
-        bio: users.bio,
-        themeMode: userPreferences.themeMode,
-        accentHue: userPreferences.accentHue,
-      })
-      .from(users)
-      .leftJoin(userPreferences, eq(userPreferences.userId, users.id))
-      .where(eq(users.id, userId))
-      .limit(1)
+    try {
+      // Check schema compatibility first
+      const schemaCheck = await checkSchema()
+      if (!schemaCheck.ok) {
+        return reply.code(500).send({
+          code: 'DB_SCHEMA_MISMATCH',
+          message: 'Database schema is incomplete or outdated',
+          details: 'Required tables or columns are missing.',
+          missing: schemaCheck.missing,
+          migrationHints: schemaCheck.migrationHints.length > 0
+            ? schemaCheck.migrationHints
+            : ['Run: npm run db:bootstrap'],
+        })
+      }
 
-    const row = result[0]
-    if (!row) {
-      return reply.code(404).send({ message: 'User not found' })
-    }
+      const result = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          displayName: users.displayName,
+          themeMode: userPreferences.themeMode,
+          accentColor: userPreferences.accentColor,
+        })
+        .from(users)
+        .leftJoin(userPreferences, eq(userPreferences.userId, users.id))
+        .where(eq(users.id, userId))
+        .limit(1)
 
-    return reply.send({
-      user: {
-        id: row.id,
-        email: row.email,
-        displayName: row.displayName,
-        avatarUrl: row.avatarUrl,
-        bio: row.bio,
-        preferences: {
-          themeMode: row.themeMode ?? 'dark',
-          accentHue: row.accentHue ?? 190,
+      const row = result[0]
+      if (!row) {
+        return reply.code(404).send({ message: 'User not found' })
+      }
+
+      // Auto-create preferences if missing
+      if (row.themeMode === null || row.accentColor === null) {
+        await ensureUserPreferences(userId)
+      }
+
+      return reply.send({
+        user: {
+          id: row.id,
+          email: row.email,
+          displayName: row.displayName,
+          preferences: {
+            themeMode: row.themeMode ?? 'dark',
+            accentColor: row.accentColor ?? '#3B82F6',
+          },
         },
-      },
-    })
+      })
+    } catch (err: any) {
+      app.log.error('Error in GET /me:', err)
+      return reply.code(500).send({
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to fetch user profile',
+        details: err.message,
+      })
+    }
   })
 
   // Update user profile
   const updateProfileSchema = z.object({
     displayName: z.string().min(1).max(100).optional(),
-    bio: z.string().max(280).optional(),
-    avatarUrl: z.string().max(500).optional(),
   })
 
   app.patch('/me', { preHandler: [app.authenticate] }, async (request, reply) => {
@@ -60,8 +83,6 @@ export async function registerMeRoutes(app: FastifyInstance) {
 
     const updates: any = {}
     if (parsed.data.displayName !== undefined) updates.displayName = parsed.data.displayName
-    if (parsed.data.bio !== undefined) updates.bio = parsed.data.bio
-    if (parsed.data.avatarUrl !== undefined) updates.avatarUrl = parsed.data.avatarUrl
 
     if (Object.keys(updates).length === 0) {
       return reply.code(400).send({ message: 'No fields to update' })
@@ -74,8 +95,6 @@ export async function registerMeRoutes(app: FastifyInstance) {
         id: users.id,
         email: users.email,
         displayName: users.displayName,
-        avatarUrl: users.avatarUrl,
-        bio: users.bio,
       })
       .from(users)
       .where(eq(users.id, userId))

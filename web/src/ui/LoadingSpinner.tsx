@@ -25,9 +25,9 @@ export function LoadingSpinner({ size = 'md', className }: LoadingSpinnerProps) 
 
 export function LoadingState({ message = 'Loading...' }: { message?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12">
+    <div className="flex flex-col items-center justify-center py-16">
       <LoadingSpinner size="lg" />
-      <p className="mt-4 text-sm text-muted-foreground">{message}</p>
+      <p className="mt-6 text-sm text-muted-foreground font-medium">{message}</p>
     </div>
   )
 }

@@ -44,31 +44,31 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="absolute inset-0 bg-black/50"
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={onClose}
           />
           
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.15 }}
+            exit={{ opacity: 0, scale: 0.96, y: 8 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             className={cn(
-              'relative w-full max-w-lg bg-card border border-border rounded-lg shadow-lg',
+              'relative w-full max-w-lg bg-card border border-border rounded-xl shadow-2xl',
               className
             )}
             onClick={(e) => e.stopPropagation()}
           >
             {title && (
-              <div className="flex items-center justify-between border-b border-border p-6 pb-4">
-                <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+              <div className="flex items-center justify-between border-b border-border px-6 py-4">
+                <h2 className="text-xl font-semibold text-foreground">{title}</h2>
                 <button
                   onClick={onClose}
-                  className="rounded-sm opacity-70 hover:opacity-100 transition-opacity"
+                  className="rounded-lg p-1 opacity-70 hover:opacity-100 hover:bg-secondary transition-all"
+                  aria-label="Close"
                 >
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Close</span>
+                  <X className="h-5 w-5" />
                 </button>
               </div>
             )}

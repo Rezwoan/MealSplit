@@ -14,6 +14,7 @@ import { LoadingState } from '../ui/LoadingSpinner'
 import { EmptyState } from '../ui/EmptyState'
 import { RoomTabs } from '../components/RoomTabs'
 import { PurchaseDetailsModal } from '../components/PurchaseDetailsModal'
+import { PageHeader } from '../ui/PageHeader'
 
 interface PurchaseItem {
   id: string

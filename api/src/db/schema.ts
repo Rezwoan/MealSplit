@@ -13,8 +13,8 @@ import {
 export const users = mysqlTable('users', {
   id: varchar('id', { length: 36 }).primaryKey(),
   email: varchar('email', { length: 255 }).notNull().unique(),
-  avatarUrl: varchar('avatar_url', { length: 500 }),
-  bio: varchar('bio', { length: 280 }),
+  // avatarUrl: varchar('avatar_url', { length: 500 }),
+  // bio: varchar('bio', { length: 280 }),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   displayName: varchar('display_name', { length: 100 }).notNull(),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
@@ -31,10 +31,9 @@ export const userPreferences = mysqlTable('user_preferences', {
   themeMode: mysqlEnum('theme_mode', ['light', 'dark', 'amoled'])
     .default('dark')
     .notNull(),
-  accentHue: int('accent_hue')
-    .default(190)
+  accentColor: varchar('accent_color', { length: 7 })
+    .default('#3B82F6')
     .notNull(),
-  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: datetime('updated_at')
     .default(sql`CURRENT_TIMESTAMP`)
     .$onUpdateFn(() => sql`CURRENT_TIMESTAMP`)

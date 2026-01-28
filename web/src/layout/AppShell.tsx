@@ -22,13 +22,13 @@ export function AppShell({ children }: AppShellProps) {
   
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-        <div className="container flex h-14 max-w-screen-2xl items-center mx-auto px-4">
-          <Link to={token ? "/rooms" : "/"} className="flex items-center gap-2 mr-6">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
+      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75">
+        <div className="container flex h-16 max-w-screen-2xl items-center mx-auto px-4 sm:px-6 lg:px-8">
+          <Link to={token ? "/rooms" : "/"} className="flex items-center gap-2.5 mr-6">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-base shadow-sm">
               MS
             </div>
-            <span className="font-semibold text-foreground">MealSplit</span>
+            <span className="font-semibold text-foreground text-lg">MealSplit</span>
           </Link>
           
           <div className="flex flex-1 items-center justify-end space-x-2">
@@ -79,12 +79,12 @@ export function AppShell({ children }: AppShellProps) {
         </div>
       </header>
       
-      <main className="container max-w-screen-2xl mx-auto px-4 py-8">
+      <main className="container max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>
       
-      <footer className="border-t border-border py-6 mt-16">
-        <div className="container max-w-screen-2xl mx-auto px-4 text-center text-sm text-muted-foreground">
+      <footer className="border-t border-border/40 py-8 mt-auto bg-background-subtle">
+        <div className="container max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-muted-foreground">
           MealSplit © 2026 · Split meals, not friendships
         </div>
       </footer>
