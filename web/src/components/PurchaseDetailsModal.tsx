@@ -4,7 +4,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { ReceiptUpload } from './ReceiptUpload';
-import { getReceipt } from '../lib/api';
+import { apiRequest, getReceipt } from '../lib/api';
 import { formatCents } from '../lib/money';
 
 interface PurchaseDetailsModalProps {
@@ -40,12 +40,27 @@ export function PurchaseDetailsModal({
 }: PurchaseDetailsModalProps) {
   const [receipt, setReceipt] = useState<any>(null);
   const [loadingReceipt, setLoadingReceipt] = useState(false);
+  const [purchaseDetails, setPurchaseDetails] = useState<any>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   useEffect(() => {
     if (isOpen && purchase.id) {
       loadReceipt();
+      loadPurchaseDetails();
     }
   }, [isOpen, purchase.id]);
+
+  const loadPurchaseDetails = async () => {
+    setLoadingDetails(true);
+    try {
+      const data = await apiRequest<any>(`/rooms/${roomId}/purchases/${purchase.id}`);
+      setPurchaseDetails(data);
+    } catch (err) {
+      console.error('Failed to load purchase details:', err);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
 
   const loadReceipt = async () => {
     setLoadingReceipt(true);
@@ -114,27 +129,38 @@ export function PurchaseDetailsModal({
         </div>
 
         {/* Splits */}
-        {purchase.splits && purchase.splits.length > 0 && (
+        {!loadingDetails && purchaseDetails?.splits && purchaseDetails.splits.length > 0 && (
           <div>
             <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
               <FileText className="w-4 h-4" />
               Split Details
+              {purchaseDetails.purchase?.splitMode && purchaseDetails.purchase.splitMode !== 'equal' && (
+                <span className="text-xs text-gray-500">
+                  ({purchaseDetails.purchase.splitMode === 'custom_amount' ? 'Custom Amount' : 'Custom %'})
+                </span>
+              )}
             </h4>
             <div className="space-y-2">
-              {purchase.splits.map((split) => (
+              {purchaseDetails.splits.map((split: any) => (
                 <div
                   key={split.userId}
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                 >
                   <span className="text-sm font-medium text-gray-900">
-                    {split.userName}
+                    {split.displayName}
                   </span>
                   <span className="text-sm text-gray-600">
-                    {formatCents(purchase.currency || 'USD', Math.round(split.amount * 100))}
+                    {formatCents(purchase.currency || 'USD', split.shareAmountCents)}
                   </span>
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {loadingDetails && (
+          <div className="flex items-center justify-center p-4">
+            <LoadingSpinner />
           </div>
         )}
 
@@ -161,7 +187,7 @@ export function PurchaseDetailsModal({
 
         {/* Actions */}
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="secondary" onClick={onClose}>
             Close
           </Button>
         </div>

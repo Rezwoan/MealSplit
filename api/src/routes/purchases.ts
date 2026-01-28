@@ -56,7 +56,7 @@ export async function registerPurchaseRoutes(app: FastifyInstance) {
         return reply.code(403).send({ message: 'Not allowed' })
       }
 
-      const { totalAmount, payerUserId, purchasedAt, notes, category } = parsed.data
+      const { totalAmount, payerUserId, purchasedAt, notes, category, splitMode, splitInputs } = parsed.data
 
       const payerMembership = await requireRoomMember(roomId, payerUserId)
       if (!payerMembership || payerMembership.status !== 'active') {
@@ -113,15 +113,64 @@ export async function registerPurchaseRoutes(app: FastifyInstance) {
         .map((row) => row.userId)
         .filter((id) => !excluded.has(id))
 
+      // Compute split based on mode
+      const mode = splitMode || 'equal'
       let splitMap: Record<string, number>
+      let inputsMap: Record<string, number> | undefined
+
       try {
-        splitMap = computeEqualSplitCents({
-          totalCents,
-          memberIdsActiveForPurchase: memberIds,
-          payerId: payerUserId,
-        })
-      } catch (err) {
-        return reply.code(400).send({ message: 'No active members to split' })
+        if (mode === 'equal') {
+          splitMap = computeEqualSplitCents({
+            totalCents,
+            memberIdsActiveForPurchase: memberIds,
+            payerId: payerUserId,
+          })
+        } else if (mode === 'custom_amount') {
+          if (!splitInputs || splitInputs.length === 0) {
+            return reply.code(400).send({ message: 'Custom amount split requires splitInputs' })
+          }
+
+          const customAmounts: Record<string, number> = {}
+          splitInputs.forEach(input => {
+            try {
+              customAmounts[input.userId] = parseAmountToCents(input.value)
+            } catch {
+              throw new Error(`Invalid amount for user ${input.userId}`)
+            }
+          })
+
+          splitMap = computeCustomAmountSplit({
+            totalCents,
+            memberIdsActiveForPurchase: memberIds,
+            customAmounts,
+          })
+          inputsMap = customAmounts
+        } else if (mode === 'custom_percent') {
+          if (!splitInputs || splitInputs.length === 0) {
+            return reply.code(400).send({ message: 'Custom percent split requires splitInputs' })
+          }
+
+          const customPercents: Record<string, number> = {}
+          splitInputs.forEach(input => {
+            const percent = parseFloat(input.value)
+            if (isNaN(percent) || percent < 0 || percent > 100) {
+              throw new Error(`Invalid percentage for user ${input.userId}`)
+            }
+            // Convert to basis points (25.5% => 2550)
+            customPercents[input.userId] = Math.round(percent * 100)
+          })
+
+          splitMap = computeCustomPercentSplit({
+            totalCents,
+            memberIdsActiveForPurchase: memberIds,
+            customPercents,
+          })
+          inputsMap = customPercents
+        } else {
+          return reply.code(400).send({ message: 'Invalid split mode' })
+        }
+      } catch (err: any) {
+        return reply.code(400).send({ message: err.message || 'Split calculation failed' })
       }
 
       const purchaseId = randomUUID()
@@ -135,8 +184,20 @@ export async function registerPurchaseRoutes(app: FastifyInstance) {
           currency: room.currency,
           notes: notes ?? null,
           category: category ?? null,
+          splitMode: mode,
           purchasedAt: purchaseTime,
         })
+
+        // Store custom split inputs if applicable
+        if (inputsMap) {
+          const inputRows = Object.entries(inputsMap).map(([userId, value]) => ({
+            id: randomUUID(),
+            purchaseId,
+            userId,
+            inputValue: value,
+          }))
+          await tx.insert(purchaseSplitInputs).values(inputRows)
+        }
 
         const splitRows = Object.entries(splitMap).map(([userId, share]) => ({
           id: randomUUID(),
@@ -186,6 +247,7 @@ export async function registerPurchaseRoutes(app: FastifyInstance) {
           currency: purchases.currency,
           notes: purchases.notes,
           category: purchases.category,
+          splitMode: purchases.splitMode,
           purchasedAt: purchases.purchasedAt,
           createdAt: purchases.createdAt,
         })
@@ -221,6 +283,7 @@ export async function registerPurchaseRoutes(app: FastifyInstance) {
           currency: purchases.currency,
           notes: purchases.notes,
           category: purchases.category,
+          splitMode: purchases.splitMode,
           purchasedAt: purchases.purchasedAt,
           createdAt: purchases.createdAt,
         })
@@ -245,7 +308,19 @@ export async function registerPurchaseRoutes(app: FastifyInstance) {
         .innerJoin(users, eq(users.id, purchaseSplits.userId))
         .where(eq(purchaseSplits.purchaseId, purchaseId))
 
-      return reply.send({ purchase, splits })
+      // Fetch split inputs if custom split mode
+      let splitInputs: Array<{ userId: string; inputValue: number }> | undefined
+      if (purchase.splitMode === 'custom_amount' || purchase.splitMode === 'custom_percent') {
+        splitInputs = await db
+          .select({
+            userId: purchaseSplitInputs.userId,
+            inputValue: purchaseSplitInputs.inputValue,
+          })
+          .from(purchaseSplitInputs)
+          .where(eq(purchaseSplitInputs.purchaseId, purchaseId))
+      }
+
+      return reply.send({ purchase, splits, splitInputs })
     },
   )
 }

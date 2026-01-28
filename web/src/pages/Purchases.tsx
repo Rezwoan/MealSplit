@@ -23,12 +23,20 @@ interface PurchaseItem {
   currency: string
   notes: string | null
   category: string | null
+  splitMode?: string
   purchasedAt: string
 }
 
 interface Member {
   userId: string
   displayName: string
+}
+
+type SplitMode = 'equal' | 'custom_amount' | 'custom_percent'
+
+interface SplitInput {
+  userId: string
+  value: string
 }
 
 export default function Purchases() {
@@ -46,6 +54,8 @@ export default function Purchases() {
   const [purchaseDate, setPurchaseDate] = useState('')
   const [notes, setNotes] = useState('')
   const [category, setCategory] = useState('')
+  const [splitMode, setSplitMode] = useState<SplitMode>('equal')
+  const [splitInputs, setSplitInputs] = useState<Record<string, string>>({})
 
   const loadData = async () => {
     if (!roomId) return
@@ -88,25 +98,88 @@ export default function Purchases() {
 
   const currency = useMemo(() => purchases[0]?.currency ?? 'USD', [purchases])
 
+  // Calculate active members for split validation
+  const eligibleMembers = useMemo(() => members.filter(m => m.userId), [members])
+
+  const splitValidation = useMemo(() => {
+    if (splitMode === 'equal') return { isValid: true, message: '' }
+    
+    const total = parseFloat(totalAmount)
+    if (isNaN(total) || total <= 0) return { isValid: false, message: 'Enter valid total amount' }
+
+    const inputs = Object.entries(splitInputs)
+    if (inputs.length !== eligibleMembers.length) {
+      return { isValid: false, message: `Enter values for all ${eligibleMembers.length} members` }
+    }
+
+    if (splitMode === 'custom_amount') {
+      const sum = inputs.reduce((acc, [_, val]) => {
+        const num = parseFloat(val)
+        return isNaN(num) ? acc : acc + num
+      }, 0)
+      const diff = Math.abs(sum - total)
+      if (diff > 0.01) {
+        return { 
+          isValid: false, 
+          message: `Split total: $${sum.toFixed(2)} (needs $${total.toFixed(2)})` 
+        }
+      }
+      return { isValid: true, message: `Split total: $${sum.toFixed(2)} ✓` }
+    }
+
+    if (splitMode === 'custom_percent') {
+      const sum = inputs.reduce((acc, [_, val]) => {
+        const num = parseFloat(val)
+        return isNaN(num) ? acc : acc + num
+      }, 0)
+      const diff = Math.abs(sum - 100)
+      if (diff > 0.01) {
+        return { 
+          isValid: false, 
+          message: `Split total: ${sum.toFixed(1)}% (needs 100%)` 
+        }
+      }
+      return { isValid: true, message: `Split total: ${sum.toFixed(1)}% ✓` }
+    }
+
+    return { isValid: false, message: '' }
+  }, [splitMode, totalAmount, splitInputs, eligibleMembers])
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
     if (!roomId) return
+    if (splitMode !== 'equal' && !splitValidation.isValid) {
+      setError(splitValidation.message)
+      return
+    }
     setError(null)
     try {
+      const body: any = {
+        totalAmount,
+        payerUserId,
+        purchasedAt: purchaseDate ? new Date(purchaseDate).toISOString() : undefined,
+        notes: notes || undefined,
+        category: category || undefined,
+      }
+
+      if (splitMode !== 'equal') {
+        body.splitMode = splitMode
+        body.splitInputs = Object.entries(splitInputs).map(([userId, value]) => ({
+          userId,
+          value,
+        }))
+      }
+
       await apiRequest(`/rooms/${roomId}/purchases`, {
         method: 'POST',
-        body: JSON.stringify({
-          totalAmount,
-          payerUserId,
-          purchasedAt: purchaseDate ? new Date(purchaseDate).toISOString() : undefined,
-          notes: notes || undefined,
-          category: category || undefined,
-        }),
+        body: JSON.stringify(body),
       })
       setTotalAmount('')
       setNotes('')
       setCategory('')
       setPurchaseDate('')
+      setSplitMode('equal')
+      setSplitInputs({})
       await loadData()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create purchase')
@@ -181,6 +254,73 @@ export default function Purchases() {
                       onChange={(e) => setNotes(e.target.value)}
                       placeholder="Additional details"
                     />
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium">Split Mode</label>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant={splitMode === 'equal' ? 'primary' : 'secondary'}
+                          onClick={() => {
+                            setSplitMode('equal')
+                            setSplitInputs({})
+                          }}
+                          className="flex-1"
+                        >
+                          Equal
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={splitMode === 'custom_amount' ? 'primary' : 'secondary'}
+                          onClick={() => {
+                            setSplitMode('custom_amount')
+                            setSplitInputs({})
+                          }}
+                          className="flex-1"
+                        >
+                          Custom Amount
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={splitMode === 'custom_percent' ? 'primary' : 'secondary'}
+                          onClick={() => {
+                            setSplitMode('custom_percent')
+                            setSplitInputs({})
+                          }}
+                          className="flex-1"
+                        >
+                          Custom %
+                        </Button>
+                      </div>
+                    </div>
+
+                    {splitMode !== 'equal' && (
+                      <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
+                        <p className="text-sm font-medium">
+                          Enter {splitMode === 'custom_amount' ? 'amounts' : 'percentages'} for each member:
+                        </p>
+                        {eligibleMembers.map((member) => (
+                          <Input
+                            key={member.userId}
+                            label={member.displayName}
+                            type="number"
+                            step={splitMode === 'custom_amount' ? '0.01' : '0.1'}
+                            min="0"
+                            value={splitInputs[member.userId] || ''}
+                            onChange={(e) => {
+                              setSplitInputs(prev => ({
+                                ...prev,
+                                [member.userId]: e.target.value
+                              }))
+                            }}
+                            placeholder={splitMode === 'custom_amount' ? '0.00' : '0.0'}
+                          />
+                        ))}
+                        <p className={`text-sm font-medium ${splitValidation.isValid ? 'text-success' : 'text-destructive'}`}>
+                          {splitValidation.message}
+                        </p>
+                      </div>
+                    )}
 
                     {error && (
                       <p className="text-sm text-destructive">{error}</p>
