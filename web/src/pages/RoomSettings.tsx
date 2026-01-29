@@ -19,6 +19,7 @@ import { LoadingState } from '../ui/LoadingSpinner'
 import { RoomTabs } from '../components/RoomTabs'
 import { Input } from '../ui/Input'
 import { Select } from '../ui/Select'
+import { PageHeader } from '../ui/PageHeader'
 
 interface Member {
   id: string
@@ -219,23 +220,25 @@ export default function RoomSettings() {
   return (
     <AppShell>
       <AnimatedPage>
-        <div className="mx-auto max-w-4xl p-4">
-          <h1 className="mb-4 text-2xl font-bold">{room.name} - Settings</h1>
-          <RoomTabs roomId={roomId!} />
+        <PageHeader
+          title={`${room.name} - Settings`}
+          description="Manage room settings and members"
+        />
+        
+        <RoomTabs roomId={roomId!} />
 
+        <div className="space-y-6 mt-6">
           {error && (
-            <Card className="mb-4 border-red-500 bg-red-50 dark:bg-red-900/20">
-              <CardContent className="flex items-center gap-2 p-4 text-red-700 dark:text-red-300">
-                <AlertCircle className="h-5 w-5" />
-                {error}
-              </CardContent>
-            </Card>
+            <div className="flex items-start gap-3 rounded-xl bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">
+              <AlertCircle className="h-5 w-5 shrink-0" />
+              <span>{error}</span>
+            </div>
           )}
 
           {/* Room Info */}
-          <Card className="mb-4">
+          <Card className="border-border/50 shadow-sm">
             <CardHeader>
-              <CardTitle>Room Information</CardTitle>
+              <CardTitle className="text-xl">Room Information</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -253,10 +256,10 @@ export default function RoomSettings() {
           </Card>
 
           {/* Members */}
-          <Card className="mb-4">
+          <Card className="border-border/50 shadow-sm">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Users className="h-5 w-5 text-primary" />
                 Members
               </CardTitle>
             </CardHeader>
@@ -267,7 +270,7 @@ export default function RoomSettings() {
                   .map((member) => (
                     <div
                       key={member.id}
-                      className="flex items-center justify-between rounded-lg border p-3"
+                      className="flex items-center justify-between rounded-xl border border-border/50 p-4 hover:bg-muted/30 transition-all duration-200"
                     >
                       <div className="flex items-center gap-3">
                         <div

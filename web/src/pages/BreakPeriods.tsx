@@ -13,6 +13,7 @@ import { Badge } from '../ui/Badge'
 import { LoadingState } from '../ui/LoadingSpinner'
 import { EmptyState } from '../ui/EmptyState'
 import { RoomTabs } from '../components/RoomTabs'
+import { PageHeader } from '../ui/PageHeader'
 
 interface BreakPeriod {
   id: string
@@ -96,18 +97,17 @@ export default function BreakPeriods() {
   return (
     <AppShell>
       <AnimatedPage>
-        <div className="space-y-6">
-          {/* Room Header */}
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{roomName || 'Room'}</h1>
-            <p className="text-sm text-muted-foreground mt-1">Manage member break periods</p>
-          </div>
+        <PageHeader
+          title={roomName || 'Room'}
+          description="Manage member break periods"
+        />
 
-          {/* Room Tabs */}
-          {roomId && <RoomTabs roomId={roomId} />}
+        {/* Room Tabs */}
+        {roomId && <RoomTabs roomId={roomId} />}
 
+        <div className="space-y-6 mt-6">
           {error && (
-            <div className="flex items-start gap-3 rounded-lg bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">
+            <div className="flex items-start gap-3 rounded-xl bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">
               <AlertTriangle className="h-5 w-5 shrink-0" />
               <span>{error}</span>
             </div>
@@ -118,15 +118,15 @@ export default function BreakPeriods() {
           ) : (
             <>
               {/* Add Break Period Form */}
-              <Card>
+              <Card className="border-border/50 shadow-sm">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Plus className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Plus className="h-5 w-5 text-primary" />
                     Add Break Period
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <form className="space-y-4" onSubmit={handleSubmit}>
+                  <form className="space-y-5" onSubmit={handleSubmit}>
                     <Select
                       label="Member"
                       value={selectedUserId}
@@ -176,10 +176,10 @@ export default function BreakPeriods() {
               </Card>
 
               {/* Break Periods List */}
-              <Card>
+              <Card className="border-border/50 shadow-sm">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Calendar className="h-5 w-5 text-primary" />
                     Break Periods ({breaks.length})
                   </CardTitle>
                 </CardHeader>
@@ -197,7 +197,7 @@ export default function BreakPeriods() {
                         return (
                           <li
                             key={bp.id}
-                            className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-card-hover transition-colors"
+                            className="flex items-center justify-between p-4 rounded-xl border border-border/50 hover:bg-muted/30 transition-all duration-200"
                           >
                             <div className="flex-1">
                               <div className="flex items-center gap-2">

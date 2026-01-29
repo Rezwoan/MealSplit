@@ -96,7 +96,7 @@ export async function registerRoomRoutes(app: FastifyInstance) {
         status: roomMemberships.status,
         inviterConfirmed: roomMemberships.inviterConfirmed,
         inviteeConfirmed: roomMemberships.inviteeConfirmed,
-        accentHue: userPreferences.accentHue,
+        accentColor: userPreferences.accentColor,
         themeMode: userPreferences.themeMode,
       })
       .from(roomMemberships)

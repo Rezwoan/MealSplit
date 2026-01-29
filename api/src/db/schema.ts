@@ -7,6 +7,7 @@ import {
   mysqlTable,
   tinyint,
   uniqueIndex,
+  index,
   varchar,
 } from 'drizzle-orm/mysql-core'
 

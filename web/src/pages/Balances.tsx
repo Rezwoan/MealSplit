@@ -10,6 +10,7 @@ import { Badge } from '../ui/Badge'
 import { LoadingState } from '../ui/LoadingSpinner'
 import { EmptyState } from '../ui/EmptyState'
 import { RoomTabs } from '../components/RoomTabs'
+import { PageHeader } from '../ui/PageHeader'
 
 interface BalanceMember {
   userId: string
@@ -70,18 +71,17 @@ export default function Balances() {
   return (
     <AppShell>
       <AnimatedPage>
-        <div className="space-y-6">
-          {/* Room Header */}
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{roomName || 'Room'}</h1>
-            <p className="text-sm text-muted-foreground mt-1">View member balances and suggested transfers</p>
-          </div>
+        <PageHeader
+          title={roomName || 'Room'}
+          description="View member balances and suggested transfers"
+        />
 
-          {/* Room Tabs */}
-          {roomId && <RoomTabs roomId={roomId} />}
+        {/* Room Tabs */}
+        {roomId && <RoomTabs roomId={roomId} />}
 
+        <div className="space-y-6 mt-6">
           {error && (
-            <div className="flex items-start gap-3 rounded-lg bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">
+            <div className="flex items-start gap-3 rounded-xl bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">
               <AlertTriangle className="h-5 w-5 shrink-0" />
               <span>{error}</span>
             </div>
@@ -92,10 +92,10 @@ export default function Balances() {
           ) : (
             <>
               {/* Member Balances */}
-              <Card>
+              <Card className="border-border/50 shadow-sm">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Wallet className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Wallet className="h-5 w-5 text-primary" />
                     Member Balances ({members.length})
                   </CardTitle>
                 </CardHeader>
@@ -111,7 +111,7 @@ export default function Balances() {
                       {members.map((member) => (
                         <li
                           key={member.userId}
-                          className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-card-hover transition-colors"
+                          className="flex items-center justify-between p-4 rounded-xl border border-border/50 hover:bg-muted/30 transition-all duration-200"
                         >
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
@@ -139,10 +139,10 @@ export default function Balances() {
               </Card>
 
               {/* Suggested Transfers */}
-              <Card>
+              <Card className="border-border/50 shadow-sm">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <ArrowRight className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <ArrowRight className="h-5 w-5 text-primary" />
                     Suggested Transfers
                   </CardTitle>
                 </CardHeader>
@@ -158,7 +158,7 @@ export default function Balances() {
                       {transfers.map((transfer) => (
                         <li
                           key={`${transfer.fromUserId}-${transfer.toUserId}`}
-                          className="flex items-center gap-3 p-4 rounded-lg border border-border hover:bg-card-hover transition-colors"
+                          className="flex items-center gap-3 p-4 rounded-xl border border-border/50 hover:bg-muted/30 transition-all duration-200"
                         >
                           <div className="flex-1 flex items-center gap-3">
                             <span className="font-medium">

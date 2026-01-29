@@ -84,14 +84,14 @@ export function PurchaseDetailsModal({
         {/* Purchase Info */}
         <div className="space-y-4">
           <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-blue-600" />
+            <div className="shrink-0 w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <DollarSign className="w-5 h-5 text-primary" />
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold">
                 {formatCents(purchase.currency || 'USD', Math.round(purchase.amount * 100))}
               </h3>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 {purchase.description || 'No description'}
               </p>
             </div>

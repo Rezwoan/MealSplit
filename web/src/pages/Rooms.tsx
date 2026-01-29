@@ -153,7 +153,7 @@ export default function Rooms() {
                           {room.name}
                         </h3>
                       </div>
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors flex-shrink-0">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors shrink-0">
                         <Users className="h-6 w-6 text-primary" />
                       </div>
                     </div>

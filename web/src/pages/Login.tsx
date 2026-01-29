@@ -46,7 +46,7 @@ export default function Login() {
         <div className="flex min-h-[calc(100vh-20rem)] items-center justify-center py-12">
           <div className="w-full max-w-md space-y-8">
             <div className="text-center">
-              <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold tracking-tight bg-linear-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
                 Welcome back
               </h1>
               <p className="mt-3 text-base text-muted-foreground">

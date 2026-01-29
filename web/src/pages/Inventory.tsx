@@ -14,6 +14,7 @@ import { LoadingState } from '../ui/LoadingSpinner'
 import { EmptyState } from '../ui/EmptyState'
 import { Modal } from '../ui/Modal'
 import { RoomTabs } from '../components/RoomTabs'
+import { PageHeader } from '../ui/PageHeader'
 
 interface InventoryItem {
   id: string
@@ -215,24 +216,23 @@ export default function Inventory() {
   return (
     <AppShell>
       <AnimatedPage>
-        <div className="space-y-6">
-          {/* Room Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">{roomName || 'Room'}</h1>
-              <p className="text-sm text-muted-foreground mt-1">Track shared inventory and food items</p>
-            </div>
+        <PageHeader
+          title={roomName || 'Room'}
+          description="Track shared inventory and food items"
+          actions={
             <Button variant="primary" onClick={() => setShowAddModal(true)}>
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-4 w-4" />
               Add Item
             </Button>
-          </div>
+          }
+        />
 
-          {/* Room Tabs */}
-          {roomId && <RoomTabs roomId={roomId} />}
+        {/* Room Tabs */}
+        {roomId && <RoomTabs roomId={roomId} />}
 
+        <div className="space-y-6 mt-6">
           {error && (
-            <div className="flex items-start gap-3 rounded-lg bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">
+            <div className="flex items-start gap-3 rounded-xl bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive">
               <AlertTriangle className="h-5 w-5 shrink-0" />
               <span>{error}</span>
             </div>
@@ -241,10 +241,10 @@ export default function Inventory() {
           {loading ? (
             <LoadingState message="Loading inventory..." />
           ) : (
-            <Card>
+            <Card className="border-border/50 shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Package className="h-5 w-5 text-primary" />
                   Inventory Items ({items.length})
                 </CardTitle>
               </CardHeader>
@@ -260,7 +260,7 @@ export default function Inventory() {
                     {items.map((item) => (
                       <li
                         key={item.id}
-                        className="flex flex-col gap-3 p-4 rounded-lg border border-border hover:bg-card-hover transition-colors lg:flex-row lg:items-center lg:justify-between"
+                        className="flex flex-col gap-3 p-4 rounded-xl border border-border/50 hover:bg-muted/30 hover:shadow-sm transition-all duration-200 lg:flex-row lg:items-center lg:justify-between"
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2 flex-wrap">

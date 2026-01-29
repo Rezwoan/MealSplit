@@ -190,28 +190,29 @@ export default function Purchases() {
   return (
     <AppShell>
       <AnimatedPage>
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{roomName || 'Room'}</h1>
-            <p className="text-sm text-muted-foreground mt-1">Track shared purchases</p>
-          </div>
+        <PageHeader
+          title={roomName || 'Room'}
+          description="Track shared purchases"
+        />
 
-          {roomId && <RoomTabs roomId={roomId} />}
+        {roomId && <RoomTabs roomId={roomId} />}
+
+        <div className="space-y-6 mt-6">
 
           {loading ? (
             <LoadingState message="Loading purchases..." />
           ) : (
             <>
               {/* Add Purchase Form */}
-              <Card>
+              <Card className="border-border/50 shadow-sm">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Plus className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Plus className="h-5 w-5 text-primary" />
                     Add Purchase
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <form className="space-y-4" onSubmit={handleSubmit}>
+                  <form className="space-y-5" onSubmit={handleSubmit}>
                     <Input
                       label={`Total amount (${currency})`}
                       type="number"
@@ -296,7 +297,7 @@ export default function Purchases() {
                     </div>
 
                     {splitMode !== 'equal' && (
-                      <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
+                      <div className="space-y-3 p-4 bg-muted/50 rounded-xl border border-border/50">
                         <p className="text-sm font-medium">
                           Enter {splitMode === 'custom_amount' ? 'amounts' : 'percentages'} for each member:
                         </p>
@@ -335,10 +336,10 @@ export default function Purchases() {
               </Card>
 
               {/* Purchases List */}
-              <Card>
+              <Card className="border-border/50 shadow-sm">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <ShoppingCart className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <ShoppingCart className="h-5 w-5 text-primary" />
                     Purchase History ({purchases.length})
                   </CardTitle>
                 </CardHeader>
@@ -354,7 +355,7 @@ export default function Purchases() {
                       {purchases.map((purchase) => (
                         <li
                           key={purchase.id}
-                          className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-card-hover transition-colors cursor-pointer"
+                          className="flex items-center justify-between p-4 rounded-xl border border-border/50 hover:bg-muted/30 hover:shadow-sm transition-all duration-200 cursor-pointer"
                           onClick={() => setSelectedPurchase(purchase)}
                         >
                           <div className="flex-1">

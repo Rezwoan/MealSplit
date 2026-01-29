@@ -3,27 +3,12 @@ import { db } from '../db'
 import { users, userPreferences, purchases, purchaseSplits, settlements } from '../db/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { z } from 'zod'
-import { ensureUserPreferences, checkSchema } from '../db/schema-check'
 
 export async function registerMeRoutes(app: FastifyInstance) {
   app.get('/me', { preHandler: [app.authenticate] }, async (request, reply) => {
     const userId = request.user.sub
 
     try {
-      // Check schema compatibility first
-      const schemaCheck = await checkSchema()
-      if (!schemaCheck.ok) {
-        return reply.code(500).send({
-          code: 'DB_SCHEMA_MISMATCH',
-          message: 'Database schema is incomplete or outdated',
-          details: 'Required tables or columns are missing.',
-          missing: schemaCheck.missing,
-          migrationHints: schemaCheck.migrationHints.length > 0
-            ? schemaCheck.migrationHints
-            : ['Run: npm run db:bootstrap'],
-        })
-      }
-
       const result = await db
         .select({
           id: users.id,
@@ -44,7 +29,13 @@ export async function registerMeRoutes(app: FastifyInstance) {
 
       // Auto-create preferences if missing
       if (row.themeMode === null || row.accentColor === null) {
-        await ensureUserPreferences(userId)
+        await db.insert(userPreferences).values({
+          userId,
+          themeMode: 'dark',
+          accentColor: '#3B82F6',
+        }).catch(() => {
+          // Ignore if already exists due to race condition
+        })
       }
 
       return reply.send({
@@ -110,18 +101,18 @@ export async function registerMeRoutes(app: FastifyInstance) {
     const result = await db
       .select({
         themeMode: userPreferences.themeMode,
-        accentHue: userPreferences.accentHue,
+        accentColor: userPreferences.accentColor,
       })
       .from(userPreferences)
       .where(eq(userPreferences.userId, userId))
       .limit(1)
 
-    const prefs = result[0] ?? { themeMode: 'dark', accentHue: 190 }
+    const prefs = result[0] ?? { themeMode: 'dark', accentColor: '#3B82F6' }
 
     return reply.send({
       preferences: {
         themeMode: prefs.themeMode,
-        accentHue: prefs.accentHue,
+        accentColor: prefs.accentColor,
       },
     })
   })
@@ -129,7 +120,7 @@ export async function registerMeRoutes(app: FastifyInstance) {
   // Update user preferences
   const updatePreferencesSchema = z.object({
     themeMode: z.enum(['light', 'dark', 'amoled']).optional(),
-    accentHue: z.number().int().min(0).max(360).optional(),
+    accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   })
 
   app.patch('/me/preferences', { preHandler: [app.authenticate] }, async (request, reply) => {
@@ -142,7 +133,7 @@ export async function registerMeRoutes(app: FastifyInstance) {
 
     const updates: any = {}
     if (parsed.data.themeMode !== undefined) updates.themeMode = parsed.data.themeMode
-    if (parsed.data.accentHue !== undefined) updates.accentHue = parsed.data.accentHue
+    if (parsed.data.accentColor !== undefined) updates.accentColor = parsed.data.accentColor
 
     if (Object.keys(updates).length === 0) {
       return reply.code(400).send({ message: 'No fields to update' })
@@ -160,7 +151,7 @@ export async function registerMeRoutes(app: FastifyInstance) {
       await db.insert(userPreferences).values({
         userId,
         themeMode: parsed.data.themeMode ?? 'dark',
-        accentHue: parsed.data.accentHue ?? 190,
+        accentColor: parsed.data.accentColor ?? '#3B82F6',
       })
     } else {
       await db.update(userPreferences).set(updates).where(eq(userPreferences.userId, userId))
@@ -169,7 +160,7 @@ export async function registerMeRoutes(app: FastifyInstance) {
     const result = await db
       .select({
         themeMode: userPreferences.themeMode,
-        accentHue: userPreferences.accentHue,
+        accentColor: userPreferences.accentColor,
       })
       .from(userPreferences)
       .where(eq(userPreferences.userId, userId))
@@ -205,7 +196,7 @@ export async function registerMeRoutes(app: FastifyInstance) {
         total: sql<number>`COALESCE(SUM(${settlements.amountCents}), 0)`,
       })
       .from(settlements)
-      .where(eq(settlements.toUserId, userId))
+      .where(eq(settlements.receiverUserId, userId))
 
     // Get settlements where user paid money
     const settlementsPaidResult = await db
@@ -213,7 +204,7 @@ export async function registerMeRoutes(app: FastifyInstance) {
         total: sql<number>`COALESCE(SUM(${settlements.amountCents}), 0)`,
       })
       .from(settlements)
-      .where(eq(settlements.fromUserId, userId))
+      .where(eq(settlements.payerUserId, userId))
 
     // Get last 30 days stats
     const thirtyDaysAgo = new Date()
